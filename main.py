@@ -37,7 +37,7 @@ def calculate_probabilities(issue_name, step_list):
         with open(LOG_FILE, 'r', encoding='utf-8') as f:
             content = f.read()
             records = content.split("="*45)
-            target_records = [r for r in records if "問題" in r and issue_name in r]
+            target_records = [r for r in records if f"問題" in r and issue_name in r]
             total_hits = len(target_records)
             
             step_stats = {step: 0 for step in step_list}
@@ -73,26 +73,4 @@ if not st.session_state.logged_in:
 
 # --- 主程式介面 ---
 st.sidebar.title(f"👤 {st.session_state.user_name}")
-menu = st.sidebar.radio("功能選單", ["🔍 異常查詢與立案", "📜 歷史回報紀錄", "📊 數據分析報表", "⚙️ 管理員後台"])
-
-# 讀取資料
-handbook = load_json(HANDBOOK_FILE, [])
-
-# --- 功能 1：查詢與立案 ---
-if menu == "🔍 異常查詢與立案":
-    st.header("🔍 異常搜尋與處理回報")
-    query = st.text_input("請輸入關鍵字（例如：馬達、感測器）")
-    
-    if query:
-        search_terms = query.lower().split()
-        found_item = next((item for item in handbook if all(t in (str(item.get('keyword',''))+str(item.get('issue',''))).lower() for t in search_terms)), None)
-        
-        if found_item:
-            st.success(f"📌 問題描述：{found_item['issue']}")
-            st.session_state.current_issue = found_item['issue']
-            
-            # 顯示建議方案
-            st.subheader("💡 排除建議方案")
-            # --- 修正第 96 行語法錯誤 ---
-            raw_steps = str(found_item.get('solution', '')).replace('；', ';').replace('\n', ';').split(';')
-            clean_steps = [re.sub(r'^\d+[\.\s]*', '', s.strip()) for s in raw_steps if s.strip
+menu = st.sidebar.radio("功能選單", ["🔍 異常查詢與立案", "📜 歷史回報紀錄
