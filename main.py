@@ -93,4 +93,51 @@ if menu == "🔍 異常查詢與立案":
             
             # 顯示建議方案
             st.subheader("💡 排除建議方案")
-            raw_steps = str(found_item.get('solution', '')).replace('；
+            # 修正截圖中的字串語法錯誤
+            raw_steps = str(found_item.get('solution', '')).replace('；', ';').replace('\n', ';').split(';')
+            clean_steps = [re.sub(r'^\d+[\.\s]*', '', s.strip()) for s in raw_steps if s.strip()]
+            
+            # 計算機率並顯示（修正縮排）
+            probs = calculate_probabilities(found_item['issue'], clean_steps)
+            
+            for i, step in enumerate(clean_steps, 1):
+                p = probs.get(step, 0)
+                if p >= 80:
+                    color = "green"
+                elif p >= 50:
+                    color = "orange"
+                else:
+                    color = "blue"
+                
+                # 正確渲染顏色
+                st.markdown(f"{i}. {step} : {color}[({p}%) 推薦度]")
+            
+            st.divider()
+            
+            # 立案回報區
+            st.subheader("📝 處理經過回報")
+            action = st.text_input("請輸入本次處理經過 (必填)")
+            add_to_handbook = st.checkbox("將此次回報內容新增為此異常的排除方式")
+            
+            if st.button("完成立案"):
+                if action:
+                    if add_to_handbook:
+                        found_item['solution'] = found_item.get('solution','') + ";" + action
+                        save_json(HANDBOOK_FILE, handbook)
+                    
+                    log_entry = (f"● 時間：{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                                 f"● 人員：{st.session_state.user_name} ({st.session_state.uid})\n"
+                                 f"● 問題：{found_item['issue']}\n"
+                                 f"● 經過：{action}\n" + "="*45 + "\n")
+                    with open(LOG_FILE, 'a', encoding='utf-8') as f:
+                        f.write(log_entry)
+                    
+                    st.balloons()
+                    st.toast("立案成功！紀錄已存入雲端。")
+                else:
+                    st.warning("請填寫處理經過！")
+        else:
+            st.error("❌ 找不到相關方案")
+
+# --- 功能 2：歷史紀錄 ---
+elif menu == "
