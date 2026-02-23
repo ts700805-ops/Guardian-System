@@ -10,6 +10,10 @@ from collections import Counter
 # --- 基礎設定 ---
 st.set_page_config(page_title="守護者 2.0版", page_icon="🛡️", layout="wide")
 
+# 獲取台灣時間 (UTC+8) 的輔助函數
+def get_taiwan_time():
+    return datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8)))
+
 # 檔案路徑設定
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 USER_FILE = os.path.join(BASE_PATH, 'users.json')
@@ -35,7 +39,8 @@ def save_json(file, data):
         json.dump(data, f, ensure_ascii=False, indent=4)
     if 'handbook' in file:
         try:
-            timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+            # 修正：備份檔名使用台灣時間
+            timestamp = get_taiwan_time().strftime('%Y%m%d_%H%M%S')
             dst = os.path.join(BACKUP_DIR, f'handbook_backup_{timestamp}.json')
             shutil.copy2(file, dst)
         except: pass
@@ -132,19 +137,17 @@ if menu == "🔍 守護者 2.0版":
                 if action.strip():
                     if extra_fix:
                         # --- 優化回寫邏輯 ---
-                        # 1. 取得目前的步驟清單
                         current_steps = clean_steps.copy()
-                        # 2. 如果新動作不在舊步驟裡，才新增
                         if action.strip() not in current_steps:
                             current_steps.append(action.strip())
                         
-                        # 3. 重新組合成具備編號與換行的格式，讓後台也好看
                         new_formatted_sol = "\n".join([f"{i+1}. {step}" for i, step in enumerate(current_steps)])
                         
                         st.session_state.handbook_data[found_idx]['solution'] = new_formatted_sol
                         save_json(HANDBOOK_FILE, st.session_state.handbook_data)
                     
-                    log_entry = (f"● 時間：{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                    # 修正：寫入紀錄使用台灣時間
+                    log_entry = (f"● 時間：{get_taiwan_time().strftime('%Y-%m-%d %H:%M:%S')}\n"
                                  f"● 人員：{st.session_state.user_name} ({st.session_state.uid})\n"
                                  f"● 問題：{found_item['issue']}\n"
                                  f"● 經過：{action}\n" + "="*45 + "\n")
