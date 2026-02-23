@@ -33,15 +33,15 @@ def load_json(file, default):
 def save_json(file, data):
     with open(file, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
-    # 自動備份邏輯
-    try:
-        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-        dst = os.path.join(BACKUP_DIR, f'handbook_backup_{timestamp}.json')
-        shutil.copy2(file, dst)
-    except: pass
+    # 只有針對手冊進行備份
+    if 'handbook' in file:
+        try:
+            timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+            dst = os.path.join(BACKUP_DIR, f'handbook_backup_{timestamp}.json')
+            shutil.copy2(file, dst)
+        except: pass
 
 def calculate_step_probabilities(issue_name, step_list):
-    """計算方案推薦度 (移植並優化 Tkinter 版本邏輯)"""
     total_steps = len(step_list)
     if total_steps == 0: return {}
     initial_prob = round(100 / total_steps, 1)
@@ -53,7 +53,6 @@ def calculate_step_probabilities(issue_name, step_list):
         with open(LOG_FILE, 'r', encoding='utf-8') as f:
             content = f.read()
             records = content.split("="*45)
-            # 確保精確比對問題名稱
             target_records = [r for r in records if f"問題：" in r and issue_name in r]
             total_hits = len(target_records)
             
@@ -63,7 +62,6 @@ def calculate_step_probabilities(issue_name, step_list):
                     if action_match:
                         action_text = action_match.group(1).strip()
                         for step in step_list:
-                            # 模糊比對：判斷回報的經過是否包含建議步驟的關鍵字
                             if action_text in step or step in action_text:
                                 step_stats[step]["count"] += 1
                 for step in step_list:
@@ -78,8 +76,8 @@ if 'logged_in' not in st.session_state:
 
 if not st.session_state.logged_in:
     st.title("🛡️ 異常守護者 系統安全驗證")
-    users = load_json(USER_FILE, {"admin": "管理員"}) # 預設 admin 帳號
-    uid = st.text_input("請輸入工號", type="password", help="請輸入您的系統驗證碼")
+    users = load_json(USER_FILE, {"admin": "管理員"}) 
+    uid = st.text_input("請輸入工號", type="password")
     if st.button("確認登入", use_container_width=True):
         if uid in users:
             st.session_state.logged_in = True
@@ -92,15 +90,15 @@ if not st.session_state.logged_in:
 
 # --- 主程式介面 ---
 st.sidebar.title(f"👤 {st.session_state.user_name}")
-st.sidebar.info(f"工號：{st.session_state.uid}")
 menu = st.sidebar.radio("功能選單", ["🔍 異常查詢與立案", "📜 歷史回報紀錄", "📊 異常數據統計", "⚙️ 管理後台"])
 
 handbook = load_json(HANDBOOK_FILE, [])
+all_users = load_json(USER_FILE, {"admin": "管理員"})
 
 # --- 功能 1：查詢與立案 ---
 if menu == "🔍 異常查詢與立案":
     st.header("🔍 異常搜尋與立案回報")
-    query = st.text_input("輸入關鍵字 (例如：馬達、皮帶、斷線)", placeholder="請輸入異常狀況關鍵字...")
+    query = st.text_input("輸入關鍵字")
     
     if query:
         search_terms = query.lower().split()
@@ -109,33 +107,20 @@ if menu == "🔍 異常查詢與立案":
         if found_item:
             st.success(f"📌 **【問題描述】**: {found_item['issue']}")
             st.subheader("💡 排除建議方案")
-            
-            # 解析方案步驟
             raw_sol = str(found_item.get('solution', ''))
             raw_steps = raw_sol.replace('；', ';').replace('\n', ';').split(';')
             clean_steps = [re.sub(r'^\d+[\.\s]*', '', s.strip()) for s in raw_steps if s.strip()]
-            
             probs = calculate_step_probabilities(found_item['issue'], clean_steps)
             
-            # 建立美化的建議清單
             for i, txt in enumerate(clean_steps, 1):
                 prob = probs[txt]["prob"]
-                if prob >= 80: color, status = "green", "[🔥 強烈推薦]"
-                elif prob >= 50: color, status = "orange", "[✅ 建議嘗試]"
-                elif prob > 0: color, status = "blue", "[ℹ️ 參考方案]"
-                else: color, status = "violet", "[🆕 可測試]"
-                
-                st.markdown(f"**{i}. {txt}** \n:{color}[成功機率約 {prob}% {status}]")
+                color = "green" if prob >= 80 else ("orange" if prob >= 50 else "blue")
+                st.markdown(f"**{i}. {txt}** \n:{color}[成功率 {prob}%]")
             
             st.divider()
-            
-            # 立案回報區
             st.subheader("📝 處理經過回報")
-            col_cb, col_in = st.columns([1, 1])
-            with col_cb:
-                extra_fix = st.checkbox("🔄 將此回報更新至排除手法")
-            
-            action = st.text_area("本次處理經過 (必填)", placeholder="描述您是如何解決此問題的...", height=100)
+            extra_fix = st.checkbox("🔄 將此回報更新至排除手法")
+            action = st.text_area("本次處理經過 (必填)")
             
             if st.button("🚀 完成立案", use_container_width=True):
                 if action:
@@ -143,102 +128,94 @@ if menu == "🔍 異常查詢與立案":
                         current_sol = found_item.get('solution', '').strip()
                         found_item['solution'] = current_sol + (";" if current_sol else "") + action
                         save_json(HANDBOOK_FILE, handbook)
-                    
                     log_entry = (f"● 時間：{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
                                  f"● 人員：{st.session_state.user_name} ({st.session_state.uid})\n"
                                  f"● 問題：{found_item['issue']}\n"
                                  f"● 經過：{action}\n" + "="*45 + "\n")
-                    with open(LOG_FILE, 'a', encoding='utf-8') as f:
-                        f.write(log_entry)
-                    
+                    with open(LOG_FILE, 'a', encoding='utf-8') as f: f.write(log_entry)
                     st.balloons()
-                    st.toast("立案成功！資料已同步雲端。")
-                    st.info("已清空當前查詢，可進行下一次搜尋。")
-                else:
-                    st.warning("⚠️ 請務必填寫處理經過！")
-        else:
-            st.error("❌ 找不到相關方案，請嘗試其他關鍵字或聯繫管理員新增。")
+                    st.success("立案成功！")
+                else: st.warning("⚠️ 請填寫回報內容")
+        else: st.error("❌ 找不到方案")
 
 # --- 功能 2：歷史紀錄 ---
 elif menu == "📜 歷史回報紀錄":
     st.header("📜 歷史回報紀錄查詢")
     if os.path.exists(LOG_FILE):
         with open(LOG_FILE, 'r', encoding='utf-8') as f:
-            content = f.read()
-            # 將 Log 反向排序，讓最新的紀錄在最上面
-            records = content.split("="*45)
-            records = [r.strip() for r in records if r.strip()]
-            records.reverse()
-            
-            st.text_area("歷史紀錄 (最新排至最舊)", "\n\n".join(records), height=600)
-    else:
-        st.info("尚無紀錄資料")
+            st.text_area("歷史紀錄", f.read(), height=600)
+    else: st.info("尚無紀錄")
 
 # --- 功能 3：數據統計 ---
 elif menu == "📊 異常數據統計":
-    st.header("📊 異常數據自動化統計")
+    st.header("📊 數據統計")
     if os.path.exists(LOG_FILE):
         with open(LOG_FILE, 'r', encoding='utf-8') as f:
             content = f.read()
             issues = re.findall(r"問題[:：]\s*(.*)", content)
             if issues:
                 stats = Counter(issues).most_common(10)
-                df = pd.DataFrame(stats, columns=["異常名稱", "發生次數"])
-                
-                # 顯示圖表
-                st.subheader("🔥 近期 Top 10 熱門異常")
-                st.bar_chart(df.set_index("異常名稱"))
-                
-                # 顯示表格
-                st.table(df)
-            else:
-                st.info("數據不足，無法生成報表。")
-    else:
-        st.info("尚未建立 Log 檔案。")
+                st.table(pd.DataFrame(stats, columns=["異常名稱", "次數"]))
+            else: st.info("數據不足")
+    else: st.info("無紀錄")
 
-# --- 功能 4：管理後台 ---
+# --- 功能 4：管理後台 (新增帳號權限管理) ---
 elif menu == "⚙️ 管理後台":
-    st.header("⚙️ 排除手法管理系統")
+    st.header("⚙️ 管理員系統")
     
-    tab1, tab2 = st.tabs(["➕ 新增異常項目", "✏️ 編輯現有清單"])
+    tab1, tab2, tab3 = st.tabs(["➕ 新增手冊項目", "✏️ 編輯手冊清單", "👤 帳號權限管理"])
     
+    # 帳號權限管理功能
+    with tab3:
+        st.subheader("👤 人員帳號管理")
+        admin_pw = st.text_input("請輸入管理員解鎖密碼", type="password", key="admin_key")
+        
+        if admin_pw == "000000":
+            st.success("🔒 權限已解鎖：您可以新增或刪除帳號")
+            st.divider()
+            
+            # 顯示現有帳號表格
+            st.write("現有帳號清單：")
+            df_users = pd.DataFrame(list(all_users.items()), columns=["工號", "姓名"])
+            st.dataframe(df_users, use_container_width=True)
+            
+            # 新增帳號表單
+            with st.form("new_user_form"):
+                new_uid = st.text_input("新增工號 (登入用)")
+                new_uname = st.text_input("人員姓名")
+                if st.form_submit_button("確認新增帳號"):
+                    if new_uid and new_uname:
+                        all_users[new_uid] = new_uname
+                        save_json(USER_FILE, all_users)
+                        st.success(f"✅ 已成功新增：{new_uname} ({new_uid})")
+                        st.rerun()
+                    else:
+                        st.error("工號與姓名不可為空")
+        elif admin_pw != "":
+            st.error("❌ 密碼錯誤，無法開啟管理功能")
+
+    # 原有的手冊編輯功能
     with tab1:
-        with st.form("new_issue_form"):
-            n_issue = st.text_input("異常標題 (例：XY軸馬達異常)")
-            n_kw = st.text_input("搜尋關鍵字 (多個請用空格分開)")
-            n_sol = st.text_area("排除步驟 (建議用分號 ; 分隔)")
-            if st.form_submit_button("確認新增"):
-                if n_issue and n_sol:
-                    handbook.append({"issue": n_issue, "keyword": n_kw, "solution": n_sol})
-                    save_json(HANDBOOK_FILE, handbook)
-                    st.success("✅ 已成功新增項目！")
-                    st.rerun()
-                else:
-                    st.error("標題與方案為必填項。")
+        with st.form("new_issue"):
+            n_issue = st.text_input("異常標題")
+            n_kw = st.text_input("關鍵字")
+            n_sol = st.text_area("方案內容")
+            if st.form_submit_button("新增"):
+                handbook.append({"issue": n_issue, "keyword": n_kw, "solution": n_sol})
+                save_json(HANDBOOK_FILE, handbook); st.rerun()
 
     with tab2:
-        search_edit = st.text_input("🔍 快速搜尋要修改的項目", placeholder="輸入標題關鍵字...")
-        filtered_handbook = [(i, item) for i, item in enumerate(handbook) if not search_edit or search_edit.lower() in item['issue'].lower()]
-        
-        for i, item in filtered_handbook:
+        for i, item in enumerate(handbook):
             with st.expander(f"編輯：{item['issue']}"):
                 e_issue = st.text_input("標題", item['issue'], key=f"is_{i}")
-                e_kw = st.text_input("關鍵字", item['keyword'], key=f"kw_{i}")
-                e_sol = st.text_area("方案內容", item['solution'], key=f"sol_{i}", height=150)
-                
-                col_save, col_del = st.columns(2)
-                if col_save.button("💾 儲存修改", key=f"sv_{i}", use_container_width=True):
-                    handbook[i] = {"issue": e_issue, "keyword": e_kw, "solution": e_sol}
-                    save_json(HANDBOOK_FILE, handbook)
-                    st.success("已儲存")
-                    st.rerun()
-                if col_del.button("🗑️ 刪除此項", key=f"del_{i}", use_container_width=True):
-                    handbook.pop(i)
-                    save_json(HANDBOOK_FILE, handbook)
-                    st.warning("項目已刪除")
-                    st.rerun()
+                e_sol = st.text_area("方案", item['solution'], key=f"sol_{i}")
+                if st.button("儲存", key=f"sv_{i}"):
+                    handbook[i] = {"issue": e_issue, "keyword": item['keyword'], "solution": e_sol}
+                    save_json(HANDBOOK_FILE, handbook); st.rerun()
+                if st.button("刪除", key=f"del_{i}"):
+                    handbook.pop(i); save_json(HANDBOOK_FILE, handbook); st.rerun()
 
 st.sidebar.divider()
-if st.sidebar.button("🚪 登出系統", use_container_width=True):
+if st.sidebar.button("🚪 登出系統"):
     st.session_state.logged_in = False
     st.rerun()
