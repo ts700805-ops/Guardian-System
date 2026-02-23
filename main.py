@@ -96,11 +96,11 @@ all_users = load_json(USER_FILE, {"admin": "管理員"})
 if menu == "🔍 守護者 2.0版":
     st.header("🛡️ 守護者 2.0版")
     
-    # 使用 session_state 管理搜尋框與回報內容的清空
-    if 'search_query' not in st.session_state: st.session_state.search_query = ""
-    if 'report_action' not in st.session_state: st.session_state.report_action = ""
+    # 初始化 Session State 用於控制清空
+    if 'clear_flag' not in st.session_state: st.session_state.clear_flag = 0
 
-    query = st.text_input("輸入關鍵字進行搜尋", value=st.session_state.search_query, placeholder="例如：馬達, 報警, 斷線...", key="query_input")
+    # 搜尋框使用一次性 Key 控制清空
+    query = st.text_input("輸入關鍵字進行搜尋", placeholder="例如：馬達, 報警, 斷線...", key=f"query_input_{st.session_state.clear_flag}")
     
     search_trigger = st.button("🔍 開始查詢", use_container_width=True)
     
@@ -126,8 +126,8 @@ if menu == "🔍 守護者 2.0版":
             st.subheader("📝 處理經過回報")
             extra_fix = st.checkbox("🔄 將此回報更新至排除手法")
             
-            # 綁定回報輸入框，以便立案後清空
-            action = st.text_area("本次處理經過 (必填)", key="report_input")
+            # 處理經過回報輸入框 (使用 clear_flag 控制立案後立即變回空白)
+            action = st.text_area("本次處理經過 (必填)", key=f"report_input_{st.session_state.clear_flag}")
             
             if st.button("🚀 完成立案", use_container_width=True):
                 if action.strip():
@@ -144,12 +144,10 @@ if menu == "🔍 守護者 2.0版":
                     with open(LOG_FILE, 'a', encoding='utf-8') as f:
                         f.write(log_entry)
                     
-                    # 重要：立案完成後清空所有輸入狀態並刷新
-                    st.success("立案成功！正在重置畫面...")
+                    # 觸發清空：改變 clear_flag 會讓所有綁定的 Widget 重新初始化為空白
+                    st.session_state.clear_flag += 1
+                    st.success("立案成功！內容已清除。")
                     st.balloons()
-                    
-                    # 清空 session 狀態並強制刷新
-                    st.session_state.search_query = ""
                     st.rerun() 
                 else:
                     st.warning("⚠️ 請填寫回報內容")
