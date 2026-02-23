@@ -72,5 +72,4 @@ if not st.session_state.logged_in:
     st.stop()
 
 # --- 主程式介面 ---
-st.sidebar.title(f"👤 {st.session_state.user_name}")
-menu = st.sidebar.radio("功能選單", ["🔍 異常查詢與立案", "📜 歷史回報紀錄
+st.sidebar.
