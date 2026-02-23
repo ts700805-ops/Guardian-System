@@ -95,12 +95,15 @@ all_users = load_json(USER_FILE, {"admin": "管理員"})
 # --- 功能 1：查詢與立案 ---
 if menu == "🔍 守護者 2.0版":
     st.header("🛡️ 守護者 2.0版")
-    query = st.text_input("輸入關鍵字進行搜尋", placeholder="例如：馬達, 報警, 斷線...")
     
-    # 新增查詢按鈕
+    # 使用 session_state 管理搜尋框與回報內容的清空
+    if 'search_query' not in st.session_state: st.session_state.search_query = ""
+    if 'report_action' not in st.session_state: st.session_state.report_action = ""
+
+    query = st.text_input("輸入關鍵字進行搜尋", value=st.session_state.search_query, placeholder="例如：馬達, 報警, 斷線...", key="query_input")
+    
     search_trigger = st.button("🔍 開始查詢", use_container_width=True)
     
-    # 如果按下按鈕或輸入框有變動
     if query or search_trigger:
         search_terms = query.lower().split()
         found_item = next((item for item in handbook if all(t in (str(item.get('keyword','')) + str(item.get('issue',''))).lower() for t in search_terms)), None)
@@ -116,28 +119,40 @@ if menu == "🔍 守護者 2.0版":
             
             for i, txt in enumerate(clean_steps, 1):
                 prob = probs[txt]["prob"]
-                if prob >= 80: color = "green"
-                elif prob >= 50: color = "orange"
-                else: color = "blue"
+                color = "green" if prob >= 80 else ("orange" if prob >= 50 else "blue")
                 st.markdown(f"**{i}. {txt}** :{color}[({prob}%) 推薦度]")
             
             st.divider()
             st.subheader("📝 處理經過回報")
             extra_fix = st.checkbox("🔄 將此回報更新至排除手法")
-            action = st.text_area("本次處理經過 (必填)")
+            
+            # 綁定回報輸入框，以便立案後清空
+            action = st.text_area("本次處理經過 (必填)", key="report_input")
+            
             if st.button("🚀 完成立案", use_container_width=True):
-                if action:
+                if action.strip():
                     if extra_fix:
                         current_sol = found_item.get('solution', '').strip()
                         found_item['solution'] = current_sol + (";" if current_sol else "") + action
                         save_json(HANDBOOK_FILE, handbook)
+                    
                     log_entry = (f"● 時間：{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
                                  f"● 人員：{st.session_state.user_name} ({st.session_state.uid})\n"
                                  f"● 問題：{found_item['issue']}\n"
                                  f"● 經過：{action}\n" + "="*45 + "\n")
-                    with open(LOG_FILE, 'a', encoding='utf-8') as f: f.write(log_entry)
-                    st.balloons(); st.success("立案成功！")
-                else: st.warning("⚠️ 請填寫回報內容")
+                    
+                    with open(LOG_FILE, 'a', encoding='utf-8') as f:
+                        f.write(log_entry)
+                    
+                    # 重要：立案完成後清空所有輸入狀態並刷新
+                    st.success("立案成功！正在重置畫面...")
+                    st.balloons()
+                    
+                    # 清空 session 狀態並強制刷新
+                    st.session_state.search_query = ""
+                    st.rerun() 
+                else:
+                    st.warning("⚠️ 請填寫回報內容")
         elif query:
             st.error("❌ 找不到方案，請更換關鍵字再試一次。")
 
