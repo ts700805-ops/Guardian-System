@@ -8,7 +8,7 @@ import shutil
 from collections import Counter
 
 # --- 基礎設定 ---
-st.set_page_config(page_title="異常守護者 1.0版 Web", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="守護者 2.0版", page_icon="🛡️", layout="wide")
 
 # 檔案路徑設定
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -73,7 +73,7 @@ if 'logged_in' not in st.session_state:
 users = load_json(USER_FILE, {"admin": "管理員"}) 
 
 if not st.session_state.logged_in:
-    st.title("🛡️ 異常守護者 系統安全驗證")
+    st.title("🛡️ 守護者 2.0版 系統驗證")
     uid = st.text_input("請輸入工號", type="password")
     if st.button("確認登入", use_container_width=True):
         if uid in users:
@@ -87,18 +87,24 @@ if not st.session_state.logged_in:
 
 # --- 主程式介面 ---
 st.sidebar.title(f"👤 {st.session_state.user_name}")
-menu = st.sidebar.radio("功能選單", ["🔍 異常查詢與立案", "📜 歷史回報紀錄", "📊 異常數據統計", "⚙️ 管理後台"])
+menu = st.sidebar.radio("功能選單", ["🔍 守護者 2.0版", "📜 歷史回報紀錄", "📊 異常數據統計", "⚙️ 管理後台"])
 
 handbook = load_json(HANDBOOK_FILE, [])
 all_users = load_json(USER_FILE, {"admin": "管理員"})
 
 # --- 功能 1：查詢與立案 ---
-if menu == "🔍 異常查詢與立案":
-    st.header("🔍 異常搜尋與立案回報")
-    query = st.text_input("輸入關鍵字")
-    if query:
+if menu == "🔍 守護者 2.0版":
+    st.header("🛡️ 守護者 2.0版")
+    query = st.text_input("輸入關鍵字進行搜尋", placeholder="例如：馬達, 報警, 斷線...")
+    
+    # 新增查詢按鈕
+    search_trigger = st.button("🔍 開始查詢", use_container_width=True)
+    
+    # 如果按下按鈕或輸入框有變動
+    if query or search_trigger:
         search_terms = query.lower().split()
         found_item = next((item for item in handbook if all(t in (str(item.get('keyword','')) + str(item.get('issue',''))).lower() for t in search_terms)), None)
+        
         if found_item:
             st.success(f"📌 **【問題描述】**: {found_item['issue']}")
             st.subheader("💡 排除建議方案")
@@ -110,11 +116,10 @@ if menu == "🔍 異常查詢與立案":
             
             for i, txt in enumerate(clean_steps, 1):
                 prob = probs[txt]["prob"]
-                # 修正：確保 Markdown 顏色標籤無空格且正確閉合
                 if prob >= 80: color = "green"
                 elif prob >= 50: color = "orange"
                 else: color = "blue"
-                st.markdown(f"{i}. {txt} :{color}[({prob}%) 推薦度]")
+                st.markdown(f"**{i}. {txt}** :{color}[({prob}%) 推薦度]")
             
             st.divider()
             st.subheader("📝 處理經過回報")
@@ -133,7 +138,8 @@ if menu == "🔍 異常查詢與立案":
                     with open(LOG_FILE, 'a', encoding='utf-8') as f: f.write(log_entry)
                     st.balloons(); st.success("立案成功！")
                 else: st.warning("⚠️ 請填寫回報內容")
-        else: st.error("❌ 找不到方案")
+        elif query:
+            st.error("❌ 找不到方案，請更換關鍵字再試一次。")
 
 # --- 功能 2：歷史紀錄 ---
 elif menu == "📜 歷史回報紀錄":
