@@ -96,12 +96,21 @@ if menu == "🔍 異常查詢與立案":
             raw_steps = str(found_item.get('solution', '')).replace('；', ';').replace('\n', ';').split(';')
             clean_steps = [re.sub(r'^\d+[\.\s]*', '', s.strip()) for s in raw_steps if s.strip()]
             
-            probs = calculate_probabilities(found_item['issue'], clean_steps)
-            
-            for i, step in enumerate(clean_steps, 1):
-                p = probs.get(step, 0)
-                color = "green" if p >= 80 else ("orange" if p >= 50 else "blue")
-                st.markdown(f"{i}. {step} : {color}[({p}%) 推薦度]")
+           probs = calculate_probabilities(found_item['issue'], clean_steps)
+
+for i, step in enumerate(clean_steps, 1):
+    p = probs.get(step, 0)
+    
+    # 根據機率決定顏色
+    if p >= 80:
+        color = "green"
+    elif p >= 50:
+        color = "orange"
+    else:
+        color = "blue"
+    
+    # 使用 st.markdown 配合 :顏色[文字] 語法來顯色
+    st.markdown(f"{i}. {step} : {color}[({p}%) 推薦度]")
             
             st.divider()
             
