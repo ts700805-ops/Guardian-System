@@ -89,32 +89,34 @@ if not st.session_state.logged_in:
 st.sidebar.title(f"👤 {st.session_state.user_name}")
 menu = st.sidebar.radio("功能選單", ["🔍 守護者 2.0版", "📜 歷史回報紀錄", "📊 異常數據統計", "⚙️ 管理後台"])
 
-handbook = load_json(HANDBOOK_FILE, [])
+# 確保 handbook 數據在 session_state 中，方便即時更新
+if 'handbook_data' not in st.session_state:
+    st.session_state.handbook_data = load_json(HANDBOOK_FILE, [])
+
+handbook = st.session_state.handbook_data
 all_users = load_json(USER_FILE, {"admin": "管理員"})
+
+# 初始化所有功能通用的重置 flag
+if 'clear_flag' not in st.session_state: st.session_state.clear_flag = 0
 
 # --- 功能 1：查詢與立案 ---
 if menu == "🔍 守護者 2.0版":
     st.header("🛡️ 守護者 2.0版")
-    
-    # 初始化 Session State 用於控制清空
-    if 'clear_flag' not in st.session_state: st.session_state.clear_flag = 0
-
-    # 搜尋框使用一次性 Key 控制清空
     query = st.text_input("輸入關鍵字進行搜尋", placeholder="例如：馬達, 報警, 斷線...", key=f"query_input_{st.session_state.clear_flag}")
-    
     search_trigger = st.button("🔍 開始查詢", use_container_width=True)
     
     if query or search_trigger:
         search_terms = query.lower().split()
-        found_item = next((item for item in handbook if all(t in (str(item.get('keyword','')) + str(item.get('issue',''))).lower() for t in search_terms)), None)
+        # 尋找匹配項目及其索引
+        found_idx = next((i for i, item in enumerate(handbook) if all(t in (str(item.get('keyword','')) + str(item.get('issue',''))).lower() for t in search_terms)), None)
         
-        if found_item:
+        if found_idx is not None:
+            found_item = handbook[found_idx]
             st.success(f"📌 **【問題描述】**: {found_item['issue']}")
             st.subheader("💡 排除建議方案")
             raw_sol = str(found_item.get('solution', ''))
             raw_steps = raw_sol.replace('；', ';').replace('\n', ';').split(';')
             clean_steps = [re.sub(r'^\d+[\.\s]*', '', s.strip()) for s in raw_steps if s.strip()]
-            
             probs = calculate_step_probabilities(found_item['issue'], clean_steps)
             
             for i, txt in enumerate(clean_steps, 1):
@@ -125,34 +127,30 @@ if menu == "🔍 守護者 2.0版":
             st.divider()
             st.subheader("📝 處理經過回報")
             extra_fix = st.checkbox("🔄 將此回報更新至排除手法")
-            
-            # 處理經過回報輸入框 (使用 clear_flag 控制立案後立即變回空白)
             action = st.text_area("本次處理經過 (必填)", key=f"report_input_{st.session_state.clear_flag}")
             
             if st.button("🚀 完成立案", use_container_width=True):
                 if action.strip():
                     if extra_fix:
+                        # 更新手冊內容：將新經過接在後面
                         current_sol = found_item.get('solution', '').strip()
-                        found_item['solution'] = current_sol + (";" if current_sol else "") + action
-                        save_json(HANDBOOK_FILE, handbook)
+                        new_sol = current_sol + (";" if current_sol else "") + action
+                        # 直接更新 session_state 中的數據
+                        st.session_state.handbook_data[found_idx]['solution'] = new_sol
+                        # 儲存回檔案
+                        save_json(HANDBOOK_FILE, st.session_state.handbook_data)
                     
                     log_entry = (f"● 時間：{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
                                  f"● 人員：{st.session_state.user_name} ({st.session_state.uid})\n"
                                  f"● 問題：{found_item['issue']}\n"
                                  f"● 經過：{action}\n" + "="*45 + "\n")
+                    with open(LOG_FILE, 'a', encoding='utf-8') as f: f.write(log_entry)
                     
-                    with open(LOG_FILE, 'a', encoding='utf-8') as f:
-                        f.write(log_entry)
-                    
-                    # 觸發清空：改變 clear_flag 會讓所有綁定的 Widget 重新初始化為空白
                     st.session_state.clear_flag += 1
-                    st.success("立案成功！內容已清除。")
-                    st.balloons()
+                    st.balloons(); st.success("立案成功！內容已同步至後台手冊。")
                     st.rerun() 
-                else:
-                    st.warning("⚠️ 請填寫回報內容")
-        elif query:
-            st.error("❌ 找不到方案，請更換關鍵字再試一次。")
+                else: st.warning("⚠️ 請填寫回報內容")
+        elif query: st.error("❌ 找不到方案")
 
 # --- 功能 2：歷史紀錄 ---
 elif menu == "📜 歷史回報紀錄":
@@ -199,36 +197,45 @@ elif menu == "⚙️ 管理後台":
             
             st.divider()
             st.write("### ➕ 新增帳號")
-            with st.form("new_user_form"):
-                new_uid = st.text_input("新增工號")
-                new_uname = st.text_input("人員姓名")
-                if st.form_submit_button("確認新增"):
-                    if new_uid and new_uname:
-                        all_users[new_uid] = new_uname
-                        save_json(USER_FILE, all_users)
-                        st.rerun()
-                    else: st.error("請填寫完整資訊")
+            new_uid = st.text_input("新增工號", key=f"new_uid_{st.session_state.clear_flag}")
+            new_uname = st.text_input("人員姓名", key=f"new_uname_{st.session_state.clear_flag}")
+            if st.button("確認新增帳號"):
+                if new_uid and new_uname:
+                    all_users[new_uid] = new_uname
+                    save_json(USER_FILE, all_users)
+                    st.session_state.clear_flag += 1
+                    st.success(f"✅ 已成功新增：{new_uname}")
+                    st.rerun()
+                else: st.error("請填寫完整資訊")
         elif admin_pw != "": st.error("❌ 密碼錯誤")
 
     with tab1:
-        with st.form("new_issue"):
-            n_issue = st.text_input("異常標題")
-            n_kw = st.text_input("關鍵字")
-            n_sol = st.text_area("方案內容")
-            if st.form_submit_button("新增項目"):
-                handbook.append({"issue": n_issue, "keyword": n_kw, "solution": n_sol})
-                save_json(HANDBOOK_FILE, handbook); st.rerun()
+        st.subheader("➕ 新增手冊項目")
+        n_issue = st.text_input("異常標題", key=f"n_issue_{st.session_state.clear_flag}")
+        n_kw = st.text_input("關鍵字", key=f"n_kw_{st.session_state.clear_flag}")
+        n_sol = st.text_area("方案內容", key=f"n_sol_{st.session_state.clear_flag}")
+        if st.button("確認新增項目"):
+            if n_issue and n_sol:
+                st.session_state.handbook_data.append({"issue": n_issue, "keyword": n_kw, "solution": n_sol})
+                save_json(HANDBOOK_FILE, st.session_state.handbook_data)
+                st.session_state.clear_flag += 1
+                st.success("✅ 手冊項目已新增！")
+                st.rerun()
+            else: st.error("標題與內容不可為空")
 
     with tab2:
-        for i, item in enumerate(handbook):
+        for i, item in enumerate(st.session_state.handbook_data):
             with st.expander(f"編輯：{item['issue']}"):
                 e_issue = st.text_input("標題", item['issue'], key=f"is_{i}")
                 e_sol = st.text_area("方案", item['solution'], key=f"sol_{i}")
                 if st.button("儲存修改", key=f"sv_{i}"):
-                    handbook[i] = {"issue": e_issue, "keyword": item['keyword'], "solution": e_sol}
-                    save_json(HANDBOOK_FILE, handbook); st.rerun()
+                    st.session_state.handbook_data[i] = {"issue": e_issue, "keyword": item['keyword'], "solution": e_sol}
+                    save_json(HANDBOOK_FILE, st.session_state.handbook_data)
+                    st.rerun()
                 if st.button("刪除項目", key=f"del_h_{i}"):
-                    handbook.pop(i); save_json(HANDBOOK_FILE, handbook); st.rerun()
+                    st.session_state.handbook_data.pop(i)
+                    save_json(HANDBOOK_FILE, st.session_state.handbook_data)
+                    st.rerun()
 
 st.sidebar.divider()
 if st.sidebar.button("🚪 登出系統"):
