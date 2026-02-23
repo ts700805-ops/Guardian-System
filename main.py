@@ -10,10 +10,6 @@ from collections import Counter
 # --- 基礎設定 ---
 st.set_page_config(page_title="守護者 2.0版", page_icon="🛡️", layout="wide")
 
-# 時區修正函數：確保獲取正確的台灣時間 (UTC+8)
-def get_now():
-    return datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8)))
-
 # 檔案路徑設定
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 USER_FILE = os.path.join(BASE_PATH, 'users.json')
@@ -39,7 +35,7 @@ def save_json(file, data):
         json.dump(data, f, ensure_ascii=False, indent=4)
     if 'handbook' in file:
         try:
-            timestamp = get_now().strftime('%Y%m%d_%H%M%S')
+            timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
             dst = os.path.join(BACKUP_DIR, f'handbook_backup_{timestamp}.json')
             shutil.copy2(file, dst)
         except: pass
@@ -135,27 +131,32 @@ if menu == "🔍 守護者 2.0版":
             if st.button("🚀 完成立案", use_container_width=True):
                 if action.strip():
                     if extra_fix:
+                        # --- 優化回寫邏輯 ---
+                        # 1. 取得目前的步驟清單
                         current_steps = clean_steps.copy()
+                        # 2. 如果新動作不在舊步驟裡，才新增
                         if action.strip() not in current_steps:
                             current_steps.append(action.strip())
+                        
+                        # 3. 重新組合成具備編號與換行的格式，讓後台也好看
                         new_formatted_sol = "\n".join([f"{i+1}. {step}" for i, step in enumerate(current_steps)])
+                        
                         st.session_state.handbook_data[found_idx]['solution'] = new_formatted_sol
                         save_json(HANDBOOK_FILE, st.session_state.handbook_data)
                     
-                    # 修正點：使用台灣時間寫入 Log
-                    log_entry = (f"● 時間：{get_now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                    log_entry = (f"● 時間：{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
                                  f"● 人員：{st.session_state.user_name} ({st.session_state.uid})\n"
                                  f"● 問題：{found_item['issue']}\n"
                                  f"● 經過：{action}\n" + "="*45 + "\n")
                     with open(LOG_FILE, 'a', encoding='utf-8') as f: f.write(log_entry)
                     
                     st.session_state.clear_flag += 1
-                    st.balloons(); st.success("立案成功！內容已同步。")
+                    st.balloons(); st.success("立案成功！內容已格式化同步至後台。")
                     st.rerun() 
                 else: st.warning("⚠️ 請填寫回報內容")
         elif query: st.error("❌ 找不到方案")
 
-# --- 功能 2：歷史紀錄 ---
+# --- 功能 2、3：歷史紀錄與統計 (保持不變) ---
 elif menu == "📜 歷史回報紀錄":
     st.header("📜 歷史回報紀錄查詢")
     if os.path.exists(LOG_FILE):
@@ -163,7 +164,6 @@ elif menu == "📜 歷史回報紀錄":
             st.text_area("歷史紀錄", f.read(), height=600)
     else: st.info("尚無紀錄")
 
-# --- 功能 3：數據統計 ---
 elif menu == "📊 異常數據統計":
     st.header("📊 數據統計")
     if os.path.exists(LOG_FILE):
@@ -174,8 +174,9 @@ elif menu == "📊 異常數據統計":
                 stats = Counter(issues).most_common(10)
                 st.table(pd.DataFrame(stats, columns=["異常名稱", "次數"]))
             else: st.info("數據不足")
+    else: st.info("無紀錄")
 
-# --- 功能 4：管理後台 ---
+# --- 功能 4：管理後台 (確保同步) ---
 elif menu == "⚙️ 管理後台":
     st.header("⚙️ 管理員系統")
     tab1, tab2, tab3 = st.tabs(["➕ 新增手冊項目", "✏️ 編輯手冊清單", "👤 帳號權限管理"])
