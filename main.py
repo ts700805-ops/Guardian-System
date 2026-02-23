@@ -8,7 +8,8 @@ import shutil
 from collections import Counter
 
 # --- 基礎設定 ---
-st.set_page_config(page_title="守護者 2.0版", page_icon="🛡️", layout="wide")
+# 這裡已將分頁標題修改為：大量科技異常守護者系統
+st.set_page_config(page_title="大量科技異常守護者系統", page_icon="🛡️", layout="wide")
 
 # 獲取台灣時間 (UTC+8) 的輔助函數
 def get_taiwan_time():
@@ -39,7 +40,6 @@ def save_json(file, data):
         json.dump(data, f, ensure_ascii=False, indent=4)
     if 'handbook' in file:
         try:
-            # 修正：備份檔名使用台灣時間
             timestamp = get_taiwan_time().strftime('%Y%m%d_%H%M%S')
             dst = os.path.join(BACKUP_DIR, f'handbook_backup_{timestamp}.json')
             shutil.copy2(file, dst)
@@ -78,7 +78,8 @@ if 'logged_in' not in st.session_state:
 users = load_json(USER_FILE, {"admin": "管理員"}) 
 
 if not st.session_state.logged_in:
-    st.title("🛡️ 守護者 2.0版 系統驗證")
+    # 登入標題修改
+    st.title("🛡️ 大量科技異常守護者系統 系統驗證")
     uid = st.text_input("請輸入工號", type="password")
     if st.button("確認登入", use_container_width=True):
         if uid in users:
@@ -92,7 +93,8 @@ if not st.session_state.logged_in:
 
 # --- 主程式介面 ---
 st.sidebar.title(f"👤 {st.session_state.user_name}")
-menu = st.sidebar.radio("功能選單", ["🔍 守護者 2.0版", "📜 歷史回報紀錄", "📊 異常數據統計", "⚙️ 管理後台"])
+# 選單標題修改
+menu = st.sidebar.radio("功能選單", ["🔍 大量科技異常守護者系統", "📜 歷史回報紀錄", "📊 異常數據統計", "⚙️ 管理後台"])
 
 if 'handbook_data' not in st.session_state:
     st.session_state.handbook_data = load_json(HANDBOOK_FILE, [])
@@ -103,8 +105,9 @@ all_users = load_json(USER_FILE, {"admin": "管理員"})
 if 'clear_flag' not in st.session_state: st.session_state.clear_flag = 0
 
 # --- 功能 1：查詢與立案 ---
-if menu == "🔍 守護者 2.0版":
-    st.header("🛡️ 守護者 2.0版")
+if menu == "🔍 大量科技異常守護者系統":
+    # 內頁大標題修改
+    st.header("🛡️ 大量科技異常守護者系統")
     query = st.text_input("輸入關鍵字進行搜尋", placeholder="例如：馬達, 報警, 斷線...", key=f"query_input_{st.session_state.clear_flag}")
     search_trigger = st.button("🔍 開始查詢", use_container_width=True)
     
@@ -136,7 +139,6 @@ if menu == "🔍 守護者 2.0版":
             if st.button("🚀 完成立案", use_container_width=True):
                 if action.strip():
                     if extra_fix:
-                        # --- 優化回寫邏輯 ---
                         current_steps = clean_steps.copy()
                         if action.strip() not in current_steps:
                             current_steps.append(action.strip())
@@ -146,7 +148,6 @@ if menu == "🔍 守護者 2.0版":
                         st.session_state.handbook_data[found_idx]['solution'] = new_formatted_sol
                         save_json(HANDBOOK_FILE, st.session_state.handbook_data)
                     
-                    # 修正：寫入紀錄使用台灣時間
                     log_entry = (f"● 時間：{get_taiwan_time().strftime('%Y-%m-%d %H:%M:%S')}\n"
                                  f"● 人員：{st.session_state.user_name} ({st.session_state.uid})\n"
                                  f"● 問題：{found_item['issue']}\n"
@@ -179,10 +180,10 @@ elif menu == "📊 異常數據統計":
             else: st.info("數據不足")
     else: st.info("無紀錄")
 
-# --- 功能 4：管理後台 (確保同步) ---
+# --- 功能 4：管理後台 ---
 elif menu == "⚙️ 管理後台":
     st.header("⚙️ 管理員系統")
-    tab1, tab2, tab3 = st.tabs(["➕ 新增手冊項目", "✏️ 編輯手冊清單", "👤 帳號權限管理"])
+    tab1, tab2, tab3 = st.tabs(["➕ 新增手冊項目", "✏️ 編輯手冊清單", "👤 帳號權權管理"])
     
     with tab3:
         st.subheader("👤 人員帳號管理")
