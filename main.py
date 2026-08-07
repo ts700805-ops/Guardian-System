@@ -136,7 +136,7 @@ if 'clear_flag' not in st.session_state: st.session_state.clear_flag = 0
 
 # --- 功能 1：查詢與立案 ---
 if menu == "🔍 異常查詢立案":
-    st.header("🛡️ 大量科技異常守護者系統")
+    st.header("🛡️異常守護者系統")
     query = st.text_input("輸入關鍵字進行搜尋", placeholder="例如：馬達, 報警, 斷線...", key=f"query_input_{st.session_state.clear_flag}")
     search_trigger = st.button("🔍 開始查詢", use_container_width=True)
     
