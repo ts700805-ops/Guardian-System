@@ -9,7 +9,7 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-st.set_page_config(page_title="大量科技異常守護者系統", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="異常守護者系統", page_icon="🛡️", layout="wide")
 
 # --- Firebase 初始化 ---
 if not firebase_admin._apps:
