@@ -115,7 +115,7 @@ if 'logged_in' not in st.session_state:
 all_users = load_users()
 
 if not st.session_state.logged_in:
-    st.title("🛡️ 大量科技異常守護者系統 系統驗證")
+    st.title("🛡️異常守護者系統 系統驗證")
     uid = st.text_input("請輸入工號", type="password")
     if st.button("確認登入", use_container_width=True):
         if uid in all_users:
