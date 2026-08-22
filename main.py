@@ -9,20 +9,16 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-03"  # 程式版本流水號 (日期+版本流水號)
+VERSION_SN = "v2026.08.22-04"  # 程式版本流水號 (日期+版本流水號)
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
-# --- 自定義專業排版與登入漸層底色樣式 ---
+# --- 自定義專業排版與頁面底部漸層綠色底色 ---
 st.markdown("""
     <style>
-    .login-container {
-        background: linear-gradient(135deg, #1f4068 0%, #162447 50%, #1b1b2f 100%);
-        padding: 40px;
-        border-radius: 15px;
-        box-shadow: 0 8px 16px rgba(0,0,0,0.3);
-        color: white;
-        max-width: 500px;
-        margin: 50px auto;
+    /* 整個頁面主體與底部套用漸層綠色底色 */
+    .stApp {
+        background: linear-gradient(180deg, #ffffff 0%, #e8f5e9 50%, #c8e6c9 100%);
+        background-attachment: fixed;
     }
     .main-header {
         background: linear-gradient(135deg, #1f4068, #162447);
@@ -146,32 +142,23 @@ def calculate_step_probabilities(issue_name, step_list):
             step_stats[step]["prob"] = round(prob, 1)
     return step_stats
 
-# --- 登入系統 (帶漸層底色且不顯示版本) ---
+# --- 登入系統 (維持需要密碼驗證，登入頁不顯示版本) ---
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
 all_users = load_users()
 
 if not st.session_state.logged_in:
-    st.markdown("""
-        <div class="login-container">
-            <h2 style="text-align: center; margin-bottom: 20px;">🛡️ 異常守護者系統</h2>
-            <p style="text-align: center; opacity: 0.8; margin-bottom: 30px;">請輸入授權工號進行系統驗證</p>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    # 讓輸入框與按鈕在版面上置中對齊呈現
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        uid = st.text_input("請輸入工號", type="password", key="login_uid")
-        if st.button("確認登入", use_container_width=True):
-            if uid in all_users:
-                st.session_state.logged_in = True
-                st.session_state.user_name = all_users[uid]
-                st.session_state.uid = uid
-                st.rerun()
-            else:
-                st.error("❌ 此帳號驗證失敗或已被凍結！")
+    st.title("🛡️ 異常守護者系統 - 系統驗證")
+    uid = st.text_input("請輸入工號", type="password")
+    if st.button("確認登入", use_container_width=True):
+        if uid in all_users:
+            st.session_state.logged_in = True
+            st.session_state.user_name = all_users[uid]
+            st.session_state.uid = uid
+            st.rerun()
+        else:
+            st.error("❌ 此帳號驗證失敗或已被凍結！")
     st.stop()
 
 # --- 主程式介面與導航選單調整 ---
@@ -185,7 +172,7 @@ menu = st.sidebar.selectbox("異常排除手冊", ["🔍 異常查詢立案", "�
 handbook = load_handbook()
 if 'clear_flag' not in st.session_state: st.session_state.clear_flag = 0
 
-# --- 功能 1：專業版查詢與立案頁面 (修復顏色字體變色) ---
+# --- 功能 1：專業版查詢與立案頁面 ---
 if menu == "🔍 異常查詢立案":
     st.markdown("""
         <div class="main-header">
@@ -219,7 +206,7 @@ if menu == "🔍 異常查詢立案":
             
             for i, txt in enumerate(clean_steps, 1):
                 prob = probs[txt]["prob"]
-                # 依據機率套用正確的顏色變色標籤
+                # 修正字體變色問題
                 if prob >= 80:
                     st.markdown(f"&nbsp;&nbsp;**{i}. {txt}** : :green[({prob}%) 歷史推薦度]")
                 elif prob >= 50:
