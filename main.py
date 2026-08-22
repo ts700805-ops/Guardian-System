@@ -9,12 +9,17 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-02"  # 程式版本流水號 (日期+版本流水號)
+VERSION_SN = "v2026.08.22-04"  # 程式版本流水號 (日期+版本流水號)
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
-# --- 自定義專業排版與底色樣式 ---
+# --- 自定義專業排版與頁面底部漸層綠色底色 ---
 st.markdown("""
     <style>
+    /* 整個頁面主體與底部套用漸層綠色底色 */
+    .stApp {
+        background: linear-gradient(180deg, #ffffff 0%, #e8f5e9 50%, #c8e6c9 100%);
+        background-attachment: fixed;
+    }
     .main-header {
         background: linear-gradient(135deg, #1f4068, #162447);
         color: white;
@@ -189,9 +194,13 @@ if menu == "🔍 異常查詢立案":
         if found_idx is not None:
             found_item = handbook[found_idx]
             st.success(f"📌 **【檢索到的問題描述】**: {found_item['issue']}")
+            if found_item.get('order_no'):
+                st.info(f"📋 製令編號：{found_item['order_no']}")
+            if found_item.get('image_path'):
+                st.image(found_item['image_path'], caption="相關附件圖片", width=300)
             
             st.markdown('<div class="solution-box">', unsafe_allow_html=True)
-            st.subheader("💡 智慧推薦排除建議方案")
+            st.subheader("💡 智慧推薦異常排除方式")
             
             raw_sol = str(found_item.get('solution', ''))
             raw_steps = raw_sol.replace('；', ';').replace('\n', ';').split(';')
@@ -201,8 +210,12 @@ if menu == "🔍 異常查詢立案":
             
             for i, txt in enumerate(clean_steps, 1):
                 prob = probs[txt]["prob"]
-                color = "green" if prob >= 80 else ("orange" if prob >= 50 else "blue")
-                st.markdown(f"&nbsp;&nbsp;**{i}. {txt}** : {color}[({prob}%) 歷史推薦度]")
+                if prob >= 80:
+                    st.markdown(f"&nbsp;&nbsp;**{i}. {txt}** : :green[({prob}%) 歷史推薦度]")
+                elif prob >= 50:
+                    st.markdown(f"&nbsp;&nbsp;**{i}. {txt}** : :orange[({prob}%) 歷史推薦度]")
+                else:
+                    st.markdown(f"&nbsp;&nbsp;**{i}. {txt}** : :blue[({prob}%) 歷史推薦度]")
             st.markdown('</div>', unsafe_allow_html=True)
             
             st.divider()
@@ -289,22 +302,54 @@ elif menu == "⚙️ 管理後台":
     with tab1:
         st.subheader("➕ 新增手冊項目")
         n_issue = st.text_input("異常標題", key=f"n_issue_{st.session_state.clear_flag}")
+        n_order = st.text_input("製令編號", key=f"n_order_{st.session_state.clear_flag}")
         n_kw = st.text_input("關鍵字", key=f"n_kw_{st.session_state.clear_flag}")
-        n_sol = st.text_area("方案內容", key=f"n_sol_{st.session_state.clear_flag}")
+        n_sol = st.text_area("異常排除方式", key=f"n_sol_{st.session_state.clear_flag}")
+        n_file = st.file_uploader("夾照片檔", type=["png", "jpg", "jpeg"], key=f"n_file_{st.session_state.clear_flag}")
+        
         if st.button("確認新增項目"):
             if n_issue and n_sol:
-                handbook.append({"issue": n_issue, "keyword": n_kw, "solution": n_sol})
+                image_path = ""
+                if n_file is not None:
+                    os.makedirs(os.path.join(BASE_PATH, "uploads"), exist_ok=True)
+                    image_path = os.path.join("uploads", n_file.name)
+                    with open(os.path.join(BASE_PATH, image_path), "wb") as f:
+                        f.write(n_file.getbuffer())
+                
+                handbook.append({
+                    "issue": n_issue, 
+                    "order_no": n_order, 
+                    "keyword": n_kw, 
+                    "solution": n_sol,
+                    "image_path": image_path
+                })
                 save_handbook(handbook)
+                
+                # 新增手冊項目時同步寫入歷史紀錄與統計
+                log_entry = (f"● 時間：{get_taiwan_time().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                             f"● 人員：{st.session_state.user_name} ({st.session_state.uid})\n"
+                             f"● 問題：{n_issue} (後台新增項目)\n"
+                             f"● 經過：新增製令編號 [{n_order}] 與異常排除方式")
+                add_log(log_entry)
+                
                 st.session_state.clear_flag += 1
+                st.success("新增項目成功！資料已同步至雲端與歷史統計。")
                 st.rerun()
 
     with tab2:
         for i, item in enumerate(handbook):
             with st.expander(f"編輯：{item['issue']}"):
                 e_issue = st.text_input("標題", item['issue'], key=f"is_{i}")
-                e_sol = st.text_area("方案", item['solution'], key=f"sol_{i}", height=200)
+                e_order = st.text_input("製令編號", item.get('order_no', ''), key=f"ord_{i}")
+                e_sol = st.text_area("異常排除方式", item['solution'], key=f"sol_{i}", height=200)
                 if st.button("儲存修改", key=f"sv_{i}"):
-                    handbook[i] = {"issue": e_issue, "keyword": item.get('keyword',''), "solution": e_sol}
+                    handbook[i] = {
+                        "issue": e_issue, 
+                        "order_no": e_order,
+                        "keyword": item.get('keyword',''), 
+                        "solution": e_sol,
+                        "image_path": item.get('image_path', '')
+                    }
                     save_handbook(handbook)
                     st.rerun()
                 if st.button("刪除項目", key=f"del_h_{i}"):
