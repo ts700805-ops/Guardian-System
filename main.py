@@ -9,7 +9,8 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-st.set_page_config(page_title="異常守護者系統", page_icon="🛡️", layout="wide")
+VERSION_SN = "v2026.08.22-01"  # 程式版本流水號 (日期+版本流水號)
+st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
 # --- Firebase 初始化 ---
 if not firebase_admin._apps:
@@ -71,7 +72,6 @@ def load_logs():
     if data is None and os.path.exists(LOG_FILE):
         with open(LOG_FILE, 'r', encoding='utf-8') as f:
             content = f.read()
-            # 將舊的 TXT 格式按分隔線拆分成清單存入雲端
             data = [r.strip() for r in content.split("="*45) if r.strip()]
             ref.set(data)
     return data if data else []
@@ -108,14 +108,15 @@ def calculate_step_probabilities(issue_name, step_list):
             step_stats[step]["prob"] = round(prob, 1)
     return step_stats
 
-# --- 登入系統 (從 Firebase 讀取) ---
+# --- 登入系統 (維持需要密碼驗證) ---
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
 all_users = load_users()
 
 if not st.session_state.logged_in:
-    st.title("🛡️異常守護者系統 系統驗證")
+    st.title("🛡️ 異常守護者系統 - 系統驗證")
+    st.caption(f"版本：{VERSION_SN}")
     uid = st.text_input("請輸入工號", type="password")
     if st.button("確認登入", use_container_width=True):
         if uid in all_users:
@@ -124,19 +125,23 @@ if not st.session_state.logged_in:
             st.session_state.uid = uid
             st.rerun()
         else:
-            st.error("❌此帳號已被凍結！")
+            st.error("❌ 此帳號驗證失敗或已被凍結！")
     st.stop()
 
-# --- 主程式介面 ---
+# --- 主程式介面與導航選單調整 ---
 st.sidebar.title(f"👤 {st.session_state.user_name}")
-menu = st.sidebar.radio("功能選單", ["🔍 異常查詢立案", "📜 歷史回報紀錄", "📊 異常數據統計", "⚙️ 管理後台"])
+st.sidebar.caption(f"版本：{VERSION_SN}")
+
+# 將紅框內功能整合至名稱為「異常排除手冊」的導航選單內
+st.sidebar.markdown("---")
+menu = st.sidebar.selectbox("異常排除手冊", ["🔍 異常查詢立案", "📜 歷史回報紀錄", "📊 異常數據統計", "⚙️ 管理後台"])
 
 handbook = load_handbook()
 if 'clear_flag' not in st.session_state: st.session_state.clear_flag = 0
 
 # --- 功能 1：查詢與立案 ---
 if menu == "🔍 異常查詢立案":
-    st.header("🛡️異常守護者系統")
+    st.header("🛡️ 異常守護者系統 - 異常查詢立案")
     query = st.text_input("輸入關鍵字進行搜尋", placeholder="例如：馬達, 報警, 斷線...", key=f"query_input_{st.session_state.clear_flag}")
     search_trigger = st.button("🔍 開始查詢", use_container_width=True)
     
@@ -187,19 +192,18 @@ if menu == "🔍 異常查詢立案":
                 else: st.warning("⚠️ 請填寫回報內容")
         elif query: st.error("❌ 找不到方案")
 
-# --- 功能 2：歷史紀錄 (從 Firebase 讀取) ---
+# --- 功能 2：歷史紀錄 ---
 elif menu == "📜 歷史回報紀錄":
     st.header("📜 歷史回報紀錄查詢")
     logs = load_logs()
     if logs:
-        # 將清單轉回文字並加上分隔線顯示
         display_text = ("\n" + "="*45 + "\n").join(logs)
         st.text_area("歷史紀錄", display_text + "\n" + "="*45, height=600)
     else: st.info("尚無紀錄")
 
-# --- 功能 3：數據統計 (從 Firebase 讀取) ---
+# --- 功能 3：數據統計 ---
 elif menu == "📊 異常數據統計":
-    st.header("📊 數據統計")
+    st.header("📊 異常數據統計")
     logs = load_logs()
     if logs:
         issues = []
@@ -213,7 +217,7 @@ elif menu == "📊 異常數據統計":
         else: st.info("數據分析中...")
     else: st.info("無紀錄")
 
-# --- 功能 4：管理後台 (從 Firebase 讀寫) ---
+# --- 功能 4：管理後台 ---
 elif menu == "⚙️ 管理後台":
     st.header("⚙️ 管理員系統")
     tab1, tab2, tab3 = st.tabs(["➕ 新增手冊項目", "✏️ 編輯手冊清單", "👤 帳號權限管理"])
