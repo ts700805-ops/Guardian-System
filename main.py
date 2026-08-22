@@ -357,7 +357,7 @@ elif menu == "⚙️ 管理後台":
                 e_order = st.text_input("製令編號", item.get('order_no', ''), key=f"ord_{i}")
                 e_sol = st.text_area("異常排除方式", item['solution'], key=f"sol_{i}", height=200)
                 
-                # 儲存修改按鈕
+                # 儲存修改按鈕 (加入氣球效果與歷史紀錄同步)
                 if st.button("儲存修改", key=f"sv_{i}"):
                     handbook[i] = {
                         "issue": e_issue, 
@@ -367,17 +367,33 @@ elif menu == "⚙️ 管理後台":
                         "image_path": item.get('image_path', '')
                     }
                     save_handbook(handbook)
+                    
+                    # 同步寫入歷史紀錄
+                    log_entry = (f"● 時間：{get_taiwan_time().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                                 f"● 人員：{st.session_state.user_name} ({st.session_state.uid})\n"
+                                 f"● 問題：{e_issue} (後台編輯修改)\n"
+                                 f"● 經過：修改製令編號 [{e_order}] 與異常排除方式內容")
+                    add_log(log_entry)
+                    
                     st.balloons()
-                    st.success("修改成功！")
+                    st.success("修改成功並已同步記錄至歷史紀錄！")
                 
-                # 刪除項目 (加入密碼 0000 驗證)
+                # 刪除項目 (加入密碼 0000 驗證與歷史紀錄同步)
                 del_pwd = st.text_input("請輸入刪除密碼 (0000)", type="password", key=f"del_pwd_{i}")
                 if st.button("刪除項目", key=f"del_h_{i}"):
                     if del_pwd == "0000":
-                        handbook.pop(i)
+                        deleted_item = handbook.pop(i)
                         save_handbook(handbook)
+                        
+                        # 同步寫入歷史紀錄
+                        log_entry = (f"● 時間：{get_taiwan_time().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                                     f"● 人員：{st.session_state.user_name} ({st.session_state.uid})\n"
+                                     f"● 問題：{deleted_item.get('issue')} (後台刪除項目)\n"
+                                     f"● 經過：刪除手冊項目與製令編號 [{deleted_item.get('order_no', '無')}]")
+                        add_log(log_entry)
+                        
                         st.balloons()
-                        st.success("刪除成功！")
+                        st.success("刪除成功並已同步記錄至歷史紀錄！")
                         st.rerun()
                     else:
                         st.error("❌ 刪除密碼錯誤！")
