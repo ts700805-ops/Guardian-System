@@ -9,7 +9,7 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-05"  # 程式版本流水號自動 +1
+VERSION_SN = "v2026.08.22-06"  # 程式版本流水號自動 +1
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
 # --- 自定義專業排版與頁面底部漸層綠色底色 ---
@@ -343,7 +343,7 @@ elif menu == "⚙️ 管理後台":
                 e_order = st.text_input("製令編號", item.get('order_no', ''), key=f"ord_{i}")
                 e_sol = st.text_area("異常排除方式", item['solution'], key=f"sol_{i}", height=200)
                 
-                # 儲存修改按鈕 (加入氣球效果)
+                # 儲存修改按鈕
                 if st.button("儲存修改", key=f"sv_{i}"):
                     handbook[i] = {
                         "issue": e_issue, 
@@ -355,7 +355,6 @@ elif menu == "⚙️ 管理後台":
                     save_handbook(handbook)
                     st.balloons()
                     st.success("修改成功！")
-                    st.rerun()
                 
                 # 刪除項目 (加入密碼 0000 驗證)
                 del_pwd = st.text_input("請輸入刪除密碼 (0000)", type="password", key=f"del_pwd_{i}")
@@ -363,6 +362,7 @@ elif menu == "⚙️ 管理後台":
                     if del_pwd == "0000":
                         handbook.pop(i)
                         save_handbook(handbook)
+                        st.balloons()
                         st.success("刪除成功！")
                         st.rerun()
                     else:
