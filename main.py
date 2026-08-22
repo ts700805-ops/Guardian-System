@@ -124,7 +124,7 @@ if not st.session_state.logged_in:
             st.session_state.uid = uid
             st.rerun()
         else:
-            st.error("❌ 驗證失敗，工號錯誤！")
+            st.error("❌此帳號已被凍結！")
     st.stop()
 
 # --- 主程式介面 ---
