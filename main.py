@@ -337,8 +337,22 @@ elif menu == "⚙️ 管理後台":
                 st.rerun()
 
     with tab2:
-        for i, item in enumerate(handbook):
-            with st.expander(f"編輯：{item['issue']}"):
+        st.subheader("✏️ 編輯手冊清單")
+        # 模糊篩選功能
+        search_filter = st.text_input("🔍 輸入關鍵字、標題或製令編號進行模糊篩選", key="edit_filter_input")
+        
+        # 根據篩選條件過濾清單
+        filtered_items = []
+        for idx, item in enumerate(handbook):
+            combined_text = f"{item.get('issue', '')} {item.get('keyword', '')} {item.get('order_no', '')} {item.get('solution', '')}".lower()
+            if not search_filter or all(term in combined_text for term in search_filter.lower().split()):
+                filtered_items.append((idx, item))
+        
+        if not filtered_items:
+            st.info("查無符合篩選條件的手冊項目")
+        
+        for i, item in filtered_items:
+            with st.expander(f"編輯：{item['issue']} (製令：{item.get('order_no', '無')})"):
                 e_issue = st.text_input("標題", item['issue'], key=f"is_{i}")
                 e_order = st.text_input("製令編號", item.get('order_no', ''), key=f"ord_{i}")
                 e_sol = st.text_area("異常排除方式", item['solution'], key=f"sol_{i}", height=200)
