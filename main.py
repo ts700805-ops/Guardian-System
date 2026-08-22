@@ -194,9 +194,13 @@ if menu == "🔍 異常查詢立案":
         if found_idx is not None:
             found_item = handbook[found_idx]
             st.success(f"📌 **【檢索到的問題描述】**: {found_item['issue']}")
+            if found_item.get('order_no'):
+                st.info(f"📋 製令編號：{found_item['order_no']}")
+            if found_item.get('image_path'):
+                st.image(found_item['image_path'], caption="相關附件圖片", width=300)
             
             st.markdown('<div class="solution-box">', unsafe_allow_html=True)
-            st.subheader("💡 智慧推薦排除建議方案")
+            st.subheader("💡 智慧推薦異常排除方式")
             
             raw_sol = str(found_item.get('solution', ''))
             raw_steps = raw_sol.replace('；', ';').replace('\n', ';').split(';')
@@ -206,7 +210,6 @@ if menu == "🔍 異常查詢立案":
             
             for i, txt in enumerate(clean_steps, 1):
                 prob = probs[txt]["prob"]
-                # 修正字體變色問題
                 if prob >= 80:
                     st.markdown(f"&nbsp;&nbsp;**{i}. {txt}** : :green[({prob}%) 歷史推薦度]")
                 elif prob >= 50:
@@ -299,11 +302,27 @@ elif menu == "⚙️ 管理後台":
     with tab1:
         st.subheader("➕ 新增手冊項目")
         n_issue = st.text_input("異常標題", key=f"n_issue_{st.session_state.clear_flag}")
+        n_order = st.text_input("製令編號", key=f"n_order_{st.session_state.clear_flag}")
         n_kw = st.text_input("關鍵字", key=f"n_kw_{st.session_state.clear_flag}")
-        n_sol = st.text_area("方案內容", key=f"n_sol_{st.session_state.clear_flag}")
+        n_sol = st.text_area("異常排除方式", key=f"n_sol_{st.session_state.clear_flag}")
+        n_file = st.file_uploader("夾照片檔", type=["png", "jpg", "jpeg"], key=f"n_file_{st.session_state.clear_flag}")
+        
         if st.button("確認新增項目"):
             if n_issue and n_sol:
-                handbook.append({"issue": n_issue, "keyword": n_kw, "solution": n_sol})
+                image_path = ""
+                if n_file is not None:
+                    os.makedirs(os.path.join(BASE_PATH, "uploads"), exist_ok=True)
+                    image_path = os.path.join("uploads", n_file.name)
+                    with open(os.path.join(BASE_PATH, image_path), "wb") as f:
+                        f.write(n_file.getbuffer())
+                
+                handbook.append({
+                    "issue": n_issue, 
+                    "order_no": n_order, 
+                    "keyword": n_kw, 
+                    "solution": n_sol,
+                    "image_path": image_path
+                })
                 save_handbook(handbook)
                 st.session_state.clear_flag += 1
                 st.rerun()
@@ -312,9 +331,16 @@ elif menu == "⚙️ 管理後台":
         for i, item in enumerate(handbook):
             with st.expander(f"編輯：{item['issue']}"):
                 e_issue = st.text_input("標題", item['issue'], key=f"is_{i}")
-                e_sol = st.text_area("方案", item['solution'], key=f"sol_{i}", height=200)
+                e_order = st.text_input("製令編號", item.get('order_no', ''), key=f"ord_{i}")
+                e_sol = st.text_area("異常排除方式", item['solution'], key=f"sol_{i}", height=200)
                 if st.button("儲存修改", key=f"sv_{i}"):
-                    handbook[i] = {"issue": e_issue, "keyword": item.get('keyword',''), "solution": e_sol}
+                    handbook[i] = {
+                        "issue": e_issue, 
+                        "order_no": e_order,
+                        "keyword": item.get('keyword',''), 
+                        "solution": e_sol,
+                        "image_path": item.get('image_path', '')
+                    }
                     save_handbook(handbook)
                     st.rerun()
                 if st.button("刪除項目", key=f"del_h_{i}"):
