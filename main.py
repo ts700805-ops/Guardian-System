@@ -355,6 +355,7 @@ elif menu == "⚙️ 管理後台":
             with st.expander(f"編輯：{item['issue']} (製令：{item.get('order_no', '無')})"):
                 e_issue = st.text_input("標題", item['issue'], key=f"is_{i}")
                 e_order = st.text_input("製令編號", item.get('order_no', ''), key=f"ord_{i}")
+                e_kw = st.text_input("關鍵字", item.get('keyword', ''), key=f"kw_{i}")  # 新增：編輯關鍵字
                 e_sol = st.text_area("異常排除方式", item['solution'], key=f"sol_{i}", height=200)
                 
                 # 儲存修改按鈕 (加入氣球效果與歷史紀錄同步)
@@ -362,7 +363,7 @@ elif menu == "⚙️ 管理後台":
                     handbook[i] = {
                         "issue": e_issue, 
                         "order_no": e_order,
-                        "keyword": item.get('keyword',''), 
+                        "keyword": e_kw,  # 套用更新後的關鍵字
                         "solution": e_sol,
                         "image_path": item.get('image_path', '')
                     }
@@ -372,7 +373,7 @@ elif menu == "⚙️ 管理後台":
                     log_entry = (f"● 時間：{get_taiwan_time().strftime('%Y-%m-%d %H:%M:%S')}\n"
                                  f"● 人員：{st.session_state.user_name} ({st.session_state.uid})\n"
                                  f"● 問題：{e_issue} (後台編輯修改)\n"
-                                 f"● 經過：修改製令編號 [{e_order}] 與異常排除方式內容")
+                                 f"● 經過：修改製令編號 [{e_order}]、關鍵字與異常排除方式內容")
                     add_log(log_entry)
                     
                     st.balloons()
