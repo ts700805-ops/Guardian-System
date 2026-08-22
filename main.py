@@ -119,10 +119,12 @@ def add_log(entry):
     ref.set(logs)
 
 def calculate_step_probabilities(issue_name, step_list):
-    """根據雲端紀錄計算推薦機率"""
+    """根據提供的排除項目數量與雲端紀錄計算推薦機率"""
     total_steps = len(step_list)
     if total_steps == 0: return {}
-    initial_prob = round(100 / total_steps, 1)
+    
+    # 根據提供的排除項目動態計算初始比例 (1項100%、2項各50%...)
+    initial_prob = round(100.0 / total_steps, 1)
     step_stats = {step: {"count": 0, "prob": initial_prob} for step in step_list}
     
     logs = load_logs()
