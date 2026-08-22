@@ -9,8 +9,37 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-01"  # 程式版本流水號 (日期+版本流水號)
+VERSION_SN = "v2026.08.22-02"  # 程式版本流水號 (日期+版本流水號)
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
+
+# --- 自定義專業排版與底色樣式 ---
+st.markdown("""
+    <style>
+    .main-header {
+        background: linear-gradient(135deg, #1f4068, #162447);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .query-card {
+        background-color: #f8f9fa;
+        border-left: 5px solid #00adb5;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .solution-box {
+        background-color: #e8f4f8;
+        padding: 15px;
+        border-radius: 6px;
+        margin-top: 10px;
+        margin-bottom: 15px;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # --- Firebase 初始化 ---
 if not firebase_admin._apps:
@@ -108,7 +137,7 @@ def calculate_step_probabilities(issue_name, step_list):
             step_stats[step]["prob"] = round(prob, 1)
     return step_stats
 
-# --- 登入系統 (維持需要密碼驗證) ---
+# --- 登入系統 (維持需要密碼驗證，登入頁不顯示版本) ---
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
@@ -116,7 +145,6 @@ all_users = load_users()
 
 if not st.session_state.logged_in:
     st.title("🛡️ 異常守護者系統 - 系統驗證")
-    st.caption(f"版本：{VERSION_SN}")
     uid = st.text_input("請輸入工號", type="password")
     if st.button("確認登入", use_container_width=True):
         if uid in all_users:
@@ -132,18 +160,27 @@ if not st.session_state.logged_in:
 st.sidebar.title(f"👤 {st.session_state.user_name}")
 st.sidebar.caption(f"版本：{VERSION_SN}")
 
-# 將紅框內功能整合至名稱為「異常排除手冊」的導航選單內
+# 異常排除手冊導航選單
 st.sidebar.markdown("---")
 menu = st.sidebar.selectbox("異常排除手冊", ["🔍 異常查詢立案", "📜 歷史回報紀錄", "📊 異常數據統計", "⚙️ 管理後台"])
 
 handbook = load_handbook()
 if 'clear_flag' not in st.session_state: st.session_state.clear_flag = 0
 
-# --- 功能 1：查詢與立案 ---
+# --- 功能 1：專業版查詢與立案頁面 ---
 if menu == "🔍 異常查詢立案":
-    st.header("🛡️ 異常守護者系統 - 異常查詢立案")
-    query = st.text_input("輸入關鍵字進行搜尋", placeholder="例如：馬達, 報警, 斷線...", key=f"query_input_{st.session_state.clear_flag}")
-    search_trigger = st.button("🔍 開始查詢", use_container_width=True)
+    st.markdown("""
+        <div class="main-header">
+            <h2>🛡️ 異常守護者系統 - 專業異常排除中心</h2>
+            <p style="margin:0; opacity:0.8;">請輸入相關設備、警報代碼或關鍵字進行智慧檢索與立案處理。</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    with st.container():
+        st.markdown('<div class="query-card">', unsafe_allow_html=True)
+        query = st.text_input("🔍 智慧關鍵字檢索", placeholder="例如：馬達、報警、斷線、PLC...", key=f"query_input_{st.session_state.clear_flag}")
+        search_trigger = st.button("執行檢索", use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
     
     if query or search_trigger:
         search_terms = query.lower().split()
@@ -151,8 +188,10 @@ if menu == "🔍 異常查詢立案":
         
         if found_idx is not None:
             found_item = handbook[found_idx]
-            st.success(f"📌 **【問題描述】**: {found_item['issue']}")
-            st.subheader("💡 排除建議方案")
+            st.success(f"📌 **【檢索到的問題描述】**: {found_item['issue']}")
+            
+            st.markdown('<div class="solution-box">', unsafe_allow_html=True)
+            st.subheader("💡 智慧推薦排除建議方案")
             
             raw_sol = str(found_item.get('solution', ''))
             raw_steps = raw_sol.replace('；', ';').replace('\n', ';').split(';')
@@ -163,14 +202,15 @@ if menu == "🔍 異常查詢立案":
             for i, txt in enumerate(clean_steps, 1):
                 prob = probs[txt]["prob"]
                 color = "green" if prob >= 80 else ("orange" if prob >= 50 else "blue")
-                st.markdown(f"**{i}. {txt}** :{color}[({prob}%) 推薦度]")
+                st.markdown(f"&nbsp;&nbsp;**{i}. {txt}** : {color}[({prob}%) 歷史推薦度]")
+            st.markdown('</div>', unsafe_allow_html=True)
             
             st.divider()
-            st.subheader("📝 處理經過回報")
-            extra_fix = st.checkbox("🔄 將此回報更新至排除手法")
-            action = st.text_area("本次處理經過 (必填)", key=f"report_input_{st.session_state.clear_flag}")
+            st.subheader("📝 現場處理經過回報")
+            extra_fix = st.checkbox("🔄 將此處理經過納入標準排除手法資料庫")
+            action = st.text_area("本次實際處理經過記錄 (必填)", key=f"report_input_{st.session_state.clear_flag}")
             
-            if st.button("🚀 完成立案", use_container_width=True):
+            if st.button("🚀 確認送出並完成立案", use_container_width=True):
                 if action.strip():
                     if extra_fix:
                         current_steps = clean_steps.copy()
@@ -187,10 +227,10 @@ if menu == "🔍 異常查詢立案":
                     add_log(log_entry) # 寫入 Firebase
                     
                     st.session_state.clear_flag += 1
-                    st.balloons(); st.success("立案成功！資料已同步至雲端。")
+                    st.balloons(); st.success("立案成功！資料已同步至雲端資料庫。")
                     st.rerun() 
-                else: st.warning("⚠️ 請填寫回報內容")
-        elif query: st.error("❌ 找不到方案")
+                else: st.warning("⚠️ 請填寫回報內容後再送出立案")
+        elif query: st.error("❌ 找不到符合條件的排除方案，請嘗試其他關鍵字。")
 
 # --- 功能 2：歷史紀錄 ---
 elif menu == "📜 歷史回報紀錄":
