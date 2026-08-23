@@ -2,10 +2,9 @@ import streamlit as st
 import datetime
 
 def render_page():
-    # 注入專屬於品質異常中心的深紅色戰情室風格 CSS
+    # 注入專屬於品質異常中心的深紅色戰情室風格 CSS (按鈕選中時呈現深紅框高亮)
     st.markdown("""
         <style>
-        /* 品質異常中心專屬深紅調漸層背景 */
         .stApp {
             background: linear-gradient(180deg, #1a0909 0%, #240d0d 50%, #3d1414 100%) !important;
             background-attachment: fixed;
@@ -32,7 +31,6 @@ def render_page():
         h1, h2, h3, h4, h5, h6, label, .stMarkdown p {
             color: #fce8e8 !important;
         }
-        /* 紅色風格下的輸入框與按鈕優化 */
         input, textarea, select {
             background-color: #2b1111 !important;
             color: #fce8e8 !important;
@@ -42,15 +40,20 @@ def render_page():
             background-color: #2b1111 !important;
             color: #fce8e8 !important;
         }
-        .stButton>button {
-            background-color: #5c1d1d !important;
+        /* 品質異常側邊欄按鈕設計：點選後呈現深紅色框 */
+        section[data-testid="stSidebar"] .stButton>button {
+            width: 100%;
+            background-color: #2b1111 !important;
             color: #ffffff !important;
-            border: 1px solid #e63946 !important;
+            border: 1px solid #5c1d1d !important;
+            border-radius: 8px;
+            text-align: left;
             font-weight: bold;
+            margin-bottom: 4px;
         }
-        .stButton>button:hover {
-            background-color: #8a2be2 !important;
-            color: #ffffff !important;
+        section[data-testid="stSidebar"] .stButton>button:hover {
+            background-color: #5c1d1d !important;
+            border: 1px solid #e63946 !important;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -61,13 +64,26 @@ def render_page():
         </div>
     """, unsafe_allow_html=True)
 
-    # 側邊欄或頁面內的子導航
-    sub_menu = st.sidebar.radio("品質異常選單", ["🔍 異常紀錄查詢", "➕ 06. 異常項目建立"], key="quality_sub_menu")
+    # 初始化品質選單狀態
+    if 'quality_choice' not in st.session_state:
+        st.session_state.quality_choice = "🔍 異常紀錄查詢"
+
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 📋 品質異常選單")
+    
+    if st.sidebar.button("🔍 異常紀錄查詢", key="ql_btn1"):
+        st.session_state.quality_choice = "🔍 異常紀錄查詢"
+        st.rerun()
+    if st.sidebar.button("➕ 06. 異常項目建立", key="ql_btn2"):
+        st.session_state.quality_choice = "➕ 06. 異常項目建立"
+        st.rerun()
+
+    sub_menu = st.session_state.quality_choice
 
     if sub_menu == "🔍 異常紀錄查詢":
         st.markdown('<div class="quality-card">', unsafe_allow_html=True)
         q_input = st.text_input("🔍 輸入品質異常關鍵字進行檢索")
-        if st.button("查詢品質異常紀錄"):
+        if st.button("查詢品質異常紀錄", key="ql_search"):
             if q_input:
                 st.success(f"成功查詢到與「{q_input}」相關的品質異常紀錄！")
             else:
