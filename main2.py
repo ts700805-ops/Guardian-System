@@ -2,35 +2,35 @@ import streamlit as st
 import datetime
 
 def render_page(current_menu):
-    # 注入強化版 CSS，強制將所有文字與按鈕改為深藍色
+    # 注入淡橙色背景與深藍色字體的優化 CSS
     st.markdown("""
         <style>
         .stApp {
-            background: linear-gradient(180deg, #1f1309 0%, #2e1d0d 50%, #4d3114 100%) !important;
+            background: linear-gradient(180deg, #fceade 0%, #f7d6bd 50%, #f2c29e 100%) !important;
             background-attachment: fixed;
         }
         .quality-header {
-            background: linear-gradient(135deg, #b05c1e, #803e11);
+            background: linear-gradient(135deg, #e07a5f, #d46342);
             padding: 20px;
             border-radius: 10px;
             margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.5);
-            border: 1px solid #d4a373;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+            border: 1px solid #f4a261;
         }
         .quality-header h2 {
             color: #0b192c !important;
         }
         .quality-card {
-            background-color: #2b1c11;
-            border-left: 6px solid #f4a261;
+            background-color: #faedcd;
+            border-left: 6px solid #e07a5f;
             padding: 20px;
             border-radius: 8px;
             margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
-            border: 1px solid #803e11;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: 1px solid #d4a373;
         }
         
-        /* 強制覆蓋 Streamlit 所有文字、標題、表單標籤、段落顏色為深藍色 */
+        /* 強制所有文字、標題、表單標籤、段落顏色為深藍色 */
         h1, h2, h3, h4, h5, h6, 
         label, 
         .stMarkdown p, 
@@ -42,13 +42,14 @@ def render_page(current_menu):
             color: #0b192c !important;
         }
 
+        /* 輸入框背景改為純白或極淺色，文字為深藍色，對比最清晰 */
         input, textarea, select {
-            background-color: #2b1c11 !important;
+            background-color: #ffffff !important;
             color: #0b192c !important;
-            border: 1px solid #d4a373 !important;
+            border: 1px solid #e07a5f !important;
         }
         .stTextInput input, .stTextArea textarea {
-            background-color: #2b1c11 !important;
+            background-color: #ffffff !important;
             color: #0b192c !important;
         }
 
@@ -56,8 +57,8 @@ def render_page(current_menu):
         section[data-testid="stSidebar"] .stButton>button,
         .stButton>button {
             width: 100%;
-            background-color: #f4a261 !important;
-            border: 1px solid #803e11 !important;
+            background-color: #e07a5f !important;
+            border: 1px solid #bc4749 !important;
             border-radius: 8px;
             font-weight: bold;
         }
@@ -71,8 +72,8 @@ def render_page(current_menu):
 
         section[data-testid="stSidebar"] .stButton>button:hover,
         .stButton>button:hover {
-            background-color: #e76f51 !important;
-            border: 1px solid #f4a261 !important;
+            background-color: #f4a261 !important;
+            border: 1px solid #e07a5f !important;
         }
         </style>
     """, unsafe_allow_html=True)
