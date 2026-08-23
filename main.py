@@ -9,7 +9,7 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-15"  # 程式版本流水號自動 +1
+VERSION_SN = "v2026.08.22-16"  # 程式版本流水號自動 +1
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
 # --- 自定義專業深色綠調戰情室風格排版與高對比深淺色優化 ---
@@ -59,8 +59,14 @@ st.markdown("""
     h1, h2, h3, h4, h5, h6, label, .stMarkdown p {
         color: #f1f8f6 !important;
     }
-    /* 統計頁面黃色標題專用 (修改框選處字體為黃色) */
+    /* 統計頁面標題與表格內容黃色專用 */
     .stat-title {
+        color: #ffd700 !important;
+    }
+    /* 將統計表格內所有文字強制改為黃色，解決原本灰色不清楚的問題 */
+    div[data-testid="stTable"] table th, 
+    div[data-testid="stTable"] table td,
+    div[data-testid="stTable"] span {
         color: #ffd700 !important;
     }
     /* 修正輸入框背景與文字顏色，解決過亮看不清楚的問題 */
@@ -301,7 +307,7 @@ elif menu == "📜 歷史回報紀錄":
         st.text_area("歷史紀錄", display_text + "\n" + "="*45, height=600)
     else: st.info("尚無紀錄")
 
-# --- 功能 3：數據統計 (字體改為黃色，純數據統計與佔比顯示) ---
+# --- 功能 3：數據統計 (標題與內容皆改為黃色，方便清晰檢視) ---
 elif menu == "📊 異常數據統計":
     st.markdown('<h2 class="stat-title">📊 異常數據統計</h2>', unsafe_allow_html=True)
     logs = load_logs()
