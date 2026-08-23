@@ -9,7 +9,7 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-06"  # 程式版本流水號自動 +1
+VERSION_SN = "v2026.08.22-04"  # 程式版本流水號 (日期+版本流水號)
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
 # --- 自定義專業排版與頁面底部漸層綠色底色 ---
@@ -123,6 +123,7 @@ def calculate_step_probabilities(issue_name, step_list):
     total_steps = len(step_list)
     if total_steps == 0: return {}
     
+    # 根據提供的排除項目動態計算初始比例 (1項100%、2項各50%...)
     initial_prob = round(100.0 / total_steps, 1)
     step_stats = {step: {"count": 0, "prob": initial_prob} for step in step_list}
     
@@ -238,7 +239,7 @@ if menu == "🔍 異常查詢立案":
                                  f"● 人員：{st.session_state.user_name} ({st.session_state.uid})\n"
                                  f"● 問題：{found_item['issue']}\n"
                                  f"● 經過：{action}")
-                    add_log(log_entry)
+                    add_log(log_entry) # 寫入 Firebase
                     
                     st.session_state.clear_flag += 1
                     st.balloons(); st.success("立案成功！資料已同步至雲端資料庫。")
@@ -326,6 +327,7 @@ elif menu == "⚙️ 管理後台":
                 })
                 save_handbook(handbook)
                 
+                # 新增手冊項目時同步寫入歷史紀錄與統計
                 log_entry = (f"● 時間：{get_taiwan_time().strftime('%Y-%m-%d %H:%M:%S')}\n"
                              f"● 人員：{st.session_state.user_name} ({st.session_state.uid})\n"
                              f"● 問題：{n_issue} (後台新增項目)\n"
@@ -337,27 +339,11 @@ elif menu == "⚙️ 管理後台":
                 st.rerun()
 
     with tab2:
-        st.subheader("✏️ 編輯手冊清單")
-        # 模糊篩選功能
-        search_filter = st.text_input("🔍 輸入關鍵字、標題或製令編號進行模糊篩選", key="edit_filter_input")
-        
-        # 根據篩選條件過濾清單
-        filtered_items = []
-        for idx, item in enumerate(handbook):
-            combined_text = f"{item.get('issue', '')} {item.get('keyword', '')} {item.get('order_no', '')} {item.get('solution', '')}".lower()
-            if not search_filter or all(term in combined_text for term in search_filter.lower().split()):
-                filtered_items.append((idx, item))
-        
-        if not filtered_items:
-            st.info("查無符合篩選條件的手冊項目")
-        
-        for i, item in filtered_items:
-            with st.expander(f"編輯：{item['issue']} (製令：{item.get('order_no', '無')})"):
+        for i, item in enumerate(handbook):
+            with st.expander(f"編輯：{item['issue']}"):
                 e_issue = st.text_input("標題", item['issue'], key=f"is_{i}")
                 e_order = st.text_input("製令編號", item.get('order_no', ''), key=f"ord_{i}")
                 e_sol = st.text_area("異常排除方式", item['solution'], key=f"sol_{i}", height=200)
-                
-                # 儲存修改按鈕 (加入氣球效果與歷史紀錄同步)
                 if st.button("儲存修改", key=f"sv_{i}"):
                     handbook[i] = {
                         "issue": e_issue, 
@@ -367,36 +353,11 @@ elif menu == "⚙️ 管理後台":
                         "image_path": item.get('image_path', '')
                     }
                     save_handbook(handbook)
-                    
-                    # 同步寫入歷史紀錄
-                    log_entry = (f"● 時間：{get_taiwan_time().strftime('%Y-%m-%d %H:%M:%S')}\n"
-                                 f"● 人員：{st.session_state.user_name} ({st.session_state.uid})\n"
-                                 f"● 問題：{e_issue} (後台編輯修改)\n"
-                                 f"● 經過：修改製令編號 [{e_order}] 與異常排除方式內容")
-                    add_log(log_entry)
-                    
-                    st.balloons()
-                    st.success("修改成功並已同步記錄至歷史紀錄！")
-                
-                # 刪除項目 (加入密碼 0000 驗證與歷史紀錄同步)
-                del_pwd = st.text_input("請輸入刪除密碼 (0000)", type="password", key=f"del_pwd_{i}")
+                    st.rerun()
                 if st.button("刪除項目", key=f"del_h_{i}"):
-                    if del_pwd == "0000":
-                        deleted_item = handbook.pop(i)
-                        save_handbook(handbook)
-                        
-                        # 同步寫入歷史紀錄
-                        log_entry = (f"● 時間：{get_taiwan_time().strftime('%Y-%m-%d %H:%M:%S')}\n"
-                                     f"● 人員：{st.session_state.user_name} ({st.session_state.uid})\n"
-                                     f"● 問題：{deleted_item.get('issue')} (後台刪除項目)\n"
-                                     f"● 經過：刪除手冊項目與製令編號 [{deleted_item.get('order_no', '無')}]")
-                        add_log(log_entry)
-                        
-                        st.balloons()
-                        st.success("刪除成功並已同步記錄至歷史紀錄！")
-                        st.rerun()
-                    else:
-                        st.error("❌ 刪除密碼錯誤！")
+                    handbook.pop(i)
+                    save_handbook(handbook)
+                    st.rerun()
 
 st.sidebar.divider()
 if st.sidebar.button("🚪 登出系統"):
