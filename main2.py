@@ -2,58 +2,58 @@ import streamlit as st
 import datetime
 
 def render_page(current_menu):
-    # 注入專屬於品質異常中心的深紅色戰情室風格 CSS
+    # 注入專屬於品質異常中心的橙色戰情室風格 CSS
     st.markdown("""
         <style>
         .stApp {
-            background: linear-gradient(180deg, #1a0909 0%, #240d0d 50%, #3d1414 100%) !important;
+            background: linear-gradient(180deg, #1f1309 0%, #2e1d0d 50%, #4d3114 100%) !important;
             background-attachment: fixed;
-            color: #fce8e8 !important;
+            color: #faedcd !important;
         }
         .quality-header {
-            background: linear-gradient(135deg, #5c1d1d, #381111);
+            background: linear-gradient(135deg, #b05c1e, #803e11);
             color: #ffffff;
             padding: 20px;
             border-radius: 10px;
             margin-bottom: 20px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.5);
-            border: 1px solid #8a2be2;
+            border: 1px solid #d4a373;
         }
         .quality-card {
-            background-color: #2b1111;
-            border-left: 6px solid #e63946;
+            background-color: #2b1c11;
+            border-left: 6px solid #f4a261;
             padding: 20px;
             border-radius: 8px;
             margin-bottom: 20px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.4);
-            border: 1px solid #5c1d1d;
+            border: 1px solid #803e11;
         }
         h1, h2, h3, h4, h5, h6, label, .stMarkdown p {
-            color: #fce8e8 !important;
+            color: #faedcd !important;
         }
         input, textarea, select {
-            background-color: #2b1111 !important;
-            color: #fce8e8 !important;
-            border: 1px solid #8a2be2 !important;
+            background-color: #2b1c11 !important;
+            color: #faedcd !important;
+            border: 1px solid #d4a373 !important;
         }
         .stTextInput input, .stTextArea textarea {
-            background-color: #2b1111 !important;
-            color: #fce8e8 !important;
+            background-color: #2b1c11 !important;
+            color: #faedcd !important;
         }
-        /* 品質異常側邊欄按鈕設計 */
+        /* 品質異常側邊欄按鈕設計 (橙色系) */
         section[data-testid="stSidebar"] .stButton>button {
             width: 100%;
-            background-color: #2b1111 !important;
+            background-color: #2b1c11 !important;
             color: #ffffff !important;
-            border: 1px solid #5c1d1d !important;
+            border: 1px solid #803e11 !important;
             border-radius: 8px;
             text-align: left;
             font-weight: bold;
             margin-bottom: 4px;
         }
         section[data-testid="stSidebar"] .stButton>button:hover {
-            background-color: #5c1d1d !important;
-            border: 1px solid #e63946 !important;
+            background-color: #b05c1e !important;
+            border: 1px solid #f4a261 !important;
         }
         </style>
     """, unsafe_allow_html=True)
