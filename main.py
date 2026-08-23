@@ -9,7 +9,7 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-18"  # 程式版本流水號自動 +1
+VERSION_SN = "v2026.08.22-19"  # 程式版本流水號自動 +1
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
 # --- 自定義專業深色綠調戰情室風格排版與高對比深淺色優化 ---
@@ -170,28 +170,30 @@ def add_log(entry):
     ref.set(logs)
 
 def calculate_step_probabilities(issue_name, step_list):
-    """根據統計頁面的次數控制來計算排除項目的推薦百分比"""
+    """根據統計次數正確計算百分比，確保總和合理且符合實際加權"""
     total_steps = len(step_list)
     if total_steps == 0: return {}
     
-    initial_prob = round(100.0 / total_steps, 1)
-    step_stats = {step: {"count": 0, "prob": initial_prob} for step in step_list}
-    
+    step_stats = {step: {"count": 0, "prob": 0.0} for step in step_list}
     logs = load_logs()
-    issues = []
-    for rec in logs:
-        match = re.search(r"問題[:：]\s*(.*)", rec)
-        if match: issues.append(match.group(1).strip())
     
-    counts = Counter(issues)
-    total_issue_count = sum(counts.values())
-    current_issue_count = counts.get(issue_name, 0)
+    # 統計各步驟在歷史紀錄中被提及或符合的次數
+    total_matches = 0
+    for step in step_list:
+        matched_count = sum(1 for r in logs if "問題：" in r and issue_name in r and step in r)
+        step_stats[step]["count"] = matched_count
+        total_matches += matched_count
     
-    if total_issue_count > 0 and current_issue_count > 0:
+    if total_matches > 0:
         for step in step_list:
-            prob = (current_issue_count / total_issue_count) * (100.0 / total_steps) * total_steps
-            if prob > 100.0: prob = 100.0
+            prob = (step_stats[step]["count"] / total_matches) * 100.0
             step_stats[step]["prob"] = round(prob, 1)
+    else:
+        # 若無歷史相符記錄，則依項目數量平均分配總計 100%
+        base_prob = round(100.0 / total_steps, 1)
+        for step in step_list:
+            step_stats[step]["prob"] = base_prob
+            
     return step_stats
 
 # --- 登入系統 (維持需要密碼驗證，登入頁不顯示版本) ---
