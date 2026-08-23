@@ -9,7 +9,7 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-38"  # 程式版本流水號自動 +1
+VERSION_SN = "v2026.08.22-39"  # 程式版本流水號自動 +1
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
 # --- 自定義專業深色綠調戰情室風格排版與高對比深淺色優化 ---
@@ -228,12 +228,15 @@ if st.sidebar.button("06. ➕ 異常項目建立", key="b6"):
 if st.sidebar.button("07. ⚙️ 異常後台管理", key="b7"):
     st.session_state.menu_choice = "07. 異常後台管理"
     st.rerun()
+if st.sidebar.button("08. 📊 品質異常分析", key="b8"):
+    st.session_state.menu_choice = "08. 品質異常分析"
+    st.rerun()
 
 menu = st.session_state.menu_choice
 handbook = load_handbook()
 if 'clear_flag' not in st.session_state: st.session_state.clear_flag = 0
 
-if menu in ["📈 異常紀錄查詢", "➕ 異常項目建立", "07. 異常後台管理"]:
+if menu in ["📈 異常紀錄查詢", "➕ 異常項目建立", "07. 異常後台管理", "08. 品質異常分析"]:
     try:
         import main2
         main2.render_page(menu)
@@ -552,7 +555,7 @@ elif menu == "⚙️ 管理後台":
                     st.balloons()
                     st.success("修改成功並已同步記錄至歷史紀錄！")
                 
-                del_pwd = st.text_input("請輸入刪除密碼 (0000)", type="password", key=f"del_pwd_{i}")
+                del_pwd = st.text_input("請輸入刪除密碼", type="password", key=f"del_pwd_{i}")
                 if st.button("刪除項目", key=f"del_h_{i}"):
                     if del_pwd == "0000":
                         deleted_item = handbook.pop(i)
