@@ -9,7 +9,7 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-35"  # 程式版本流水號自動 +1
+VERSION_SN = "v2026.08.22-36"  # 程式版本流水號自動 +1
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
 # --- 自定義專業深色綠調戰情室風格排版與高對比深淺色優化 ---
@@ -83,7 +83,7 @@ st.markdown("""
         background-color: #112a21 !important;
         color: #f1f8f6 !important;
     }
-    /* 側邊欄按鈕設計，模仿照片中的區塊按鈕樣式 */
+    /* 側邊欄按鈕設計：綠色系邊框 */
     section[data-testid="stSidebar"] .stButton>button {
         width: 100%;
         background-color: #112a21 !important;
@@ -213,7 +213,7 @@ if not st.session_state.logged_in:
             st.error("❌ 此帳號驗證失敗或已被凍結！")
     st.stop()
 
-# --- 主程式側邊欄導航設定（採用按鈕點選形式，完美對應照片風格） ---
+# --- 主程式側邊欄導航設定（按鈕形式與選取高亮） ---
 st.sidebar.title(f"👤 {st.session_state.user_name}")
 st.sidebar.caption(f"版本：{VERSION_SN}")
 
@@ -222,22 +222,29 @@ if 'menu_choice' not in st.session_state:
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🛠️ 異常排除手冊導航")
-if st.sidebar.button("01. 🔍 異常查詢立案"):
+
+# 動態設定選中按鈕的外框與背景顏色（綠色系區分）
+def get_btn_style(target_menu):
+    if st.session_state.menu_choice == target_menu:
+        return "background-color: #1b4d3e !important; border: 2px solid #52b788 !important;"
+    return ""
+
+if st.sidebar.button("01. 🔍 異常查詢立案", key="b1"):
     st.session_state.menu_choice = "🔍 異常查詢立案"
     st.rerun()
-if st.sidebar.button("02. 📜 歷史回報紀錄"):
+if st.sidebar.button("02. 📜 歷史回報紀錄", key="b2"):
     st.session_state.menu_choice = "📜 歷史回報紀錄"
     st.rerun()
-if st.sidebar.button("03. 📊 異常數據統計"):
+if st.sidebar.button("03. 📊 異常數據統計", key="b3"):
     st.session_state.menu_choice = "📊 異常數據統計"
     st.rerun()
-if st.sidebar.button("04. ⚙️ 管理後台"):
+if st.sidebar.button("04. ⚙️ 管理後台", key="b4"):
     st.session_state.menu_choice = "⚙️ 管理後台"
     st.rerun()
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 📈 品質異常導航")
-if st.sidebar.button("05. 📈 異常紀錄查詢"):
+if st.sidebar.button("05. 📈 異常紀錄查詢", key="b5"):
     st.session_state.menu_choice = "📈 異常紀錄查詢"
     st.rerun()
 
