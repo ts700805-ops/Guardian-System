@@ -9,7 +9,7 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-20"  # 程式版本流水號自動 +1
+VERSION_SN = "v2026.08.22-22"  # 程式版本流水號自動 +1
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
 # --- 自定義專業深色綠調戰情室風格排版與高對比深淺色優化 ---
@@ -170,7 +170,7 @@ def add_log(entry):
     ref.set(logs)
 
 def calculate_step_probabilities(found_item, step_list):
-    """根據手冊項目中記錄的各步驟次數設定計算百分比，確保總和為 100%"""
+    """根據手冊項目中記錄的各步驟次數設定計算百分比，確保符合規格並總和為 100%"""
     total_steps = len(step_list)
     if total_steps == 0: return {}
     
@@ -184,7 +184,6 @@ def calculate_step_probabilities(found_item, step_list):
             prob = round((cnt / total_counts) * 100.0, 1)
             step_stats[step] = {"count": cnt, "prob": prob}
     else:
-        # 若未設定次數，則預設平均分配
         base_prob = round(100.0 / total_steps, 1)
         for step in step_list:
             step_stats[step] = {"count": 0, "prob": base_prob}
@@ -246,7 +245,6 @@ if menu == "🔍 異常查詢立案":
             if found_item.get('order_no'):
                 st.info(f"📋 製令編號：{found_item['order_no']}")
             
-            # 圖片檔案安全檢查：若檔案存在才顯示
             img_path = found_item.get('image_path')
             if img_path:
                 full_img_path = os.path.join(BASE_PATH, img_path) if not os.path.isabs(img_path) else img_path
@@ -264,12 +262,19 @@ if menu == "🔍 異常查詢立案":
             
             for i, txt in enumerate(clean_steps, 1):
                 prob = probs[txt]["prob"]
-                if prob >= 80:
-                    st.markdown(f"&nbsp;&nbsp;**{i}. {txt}** : :green[({prob}%) 歷史推薦度]")
-                elif prob >= 50:
-                    st.markdown(f"&nbsp;&nbsp;**{i}. {txt}** : :orange[({prob}%) 歷史推薦度]")
+                # 依照 100%、75%、50%、25%、0% 規格設定高對比色彩
+                if prob >= 100.0:
+                    color_style = "color: #2ec4b6; font-weight: bold;"
+                elif prob >= 75.0:
+                    color_style = "color: #52b788; font-weight: bold;"
+                elif prob >= 50.0:
+                    color_style = "color: #ffb703; font-weight: bold;"
+                elif prob >= 25.0:
+                    color_style = "color: #fb8500; font-weight: bold;"
                 else:
-                    st.markdown(f"&nbsp;&nbsp;**{i}. {txt}** : :blue[({prob}%) 歷史推薦度]")
+                    color_style = "color: #e63946; font-weight: bold;"
+                
+                st.markdown(f"&nbsp;&nbsp;**{i}. {txt}**: <span style='{color_style}'>({prob}%)</span> <span style='color: #a3b18a;'>歷史推薦度</span>", unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
             
             st.divider()
@@ -444,10 +449,8 @@ elif menu == "⚙️ 管理後台":
 
     with tab2:
         st.subheader("✏️ 編輯手冊清單")
-        # 模糊篩選功能
         search_filter = st.text_input("🔍 輸入關鍵字、標題或製令編號進行模糊篩選", key="edit_filter_input")
         
-        # 根據篩選條件過濾清單
         filtered_items = []
         for idx, item in enumerate(handbook):
             combined_text = f"{item.get('issue', '')} {item.get('keyword', '')} {item.get('order_no', '')} {item.get('solution', '')}".lower()
@@ -464,7 +467,6 @@ elif menu == "⚙️ 管理後台":
                 e_kw = st.text_input("關鍵字", item.get('keyword', ''), key=f"kw_{i}")
                 e_sol = st.text_area("異常排除方式", item['solution'], key=f"sol_{i}", height=200)
                 
-                # 新增：針對各排除步驟之次數設定（項次 30 智慧推薦次數調整）
                 st.markdown("---")
                 st.subheader("⚙️ 智慧推薦排除方式次數調整")
                 raw_steps = e_sol.replace('；', ';').replace('\n', ';').split(';')
@@ -476,7 +478,6 @@ elif menu == "⚙️ 管理後台":
                     default_c = current_step_counts.get(step_txt, 0)
                     new_step_counts[step_txt] = st.number_input(f"排除次數 - {s_idx+1}. {step_txt[:20]}...", value=int(default_c), min_value=0, key=f"step_cnt_{i}_{s_idx}")
                 
-                # 編輯與持久保存照片功能
                 current_img = item.get('image_path', '')
                 if current_img:
                     full_curr_img = os.path.join(BASE_PATH, current_img) if not os.path.isabs(current_img) else current_img
@@ -484,7 +485,6 @@ elif menu == "⚙️ 管理後台":
                         st.image(full_curr_img, caption="目前儲存的照片", width=200)
                 e_file = st.file_uploader("更換或新增照片檔", type=["png", "jpg", "jpeg"], key=f"efile_{i}")
                 
-                # 儲存修改按鈕 (加入氣球效果與歷史紀錄同步)
                 if st.button("儲存修改", key=f"sv_{i}"):
                     final_img_path = current_img
                     if e_file is not None:
@@ -503,7 +503,6 @@ elif menu == "⚙️ 管理後台":
                     }
                     save_handbook(handbook)
                     
-                    # 同步寫入歷史紀錄
                     log_entry = (f"● 時間：{get_taiwan_time().strftime('%Y-%m-%d %H:%M:%S')}\n"
                                  f"● 人員：{st.session_state.user_name} ({st.session_state.uid})\n"
                                  f"● 問題：{e_issue} (後台編輯修改)\n"
@@ -513,14 +512,12 @@ elif menu == "⚙️ 管理後台":
                     st.balloons()
                     st.success("修改成功並已同步記錄至歷史紀錄！")
                 
-                # 刪除項目 (加入密碼 0000 驗證與歷史紀錄同步)
                 del_pwd = st.text_input("請輸入刪除密碼 (0000)", type="password", key=f"del_pwd_{i}")
                 if st.button("刪除項目", key=f"del_h_{i}"):
                     if del_pwd == "0000":
                         deleted_item = handbook.pop(i)
                         save_handbook(handbook)
                         
-                        # 同步寫入歷史紀錄
                         log_entry = (f"● 時間：{get_taiwan_time().strftime('%Y-%m-%d %H:%M:%S')}\n"
                                      f"● 人員：{st.session_state.user_name} ({st.session_state.uid})\n"
                                      f"● 問題：{deleted_item.get('issue')} (後台刪除項目)\n"
