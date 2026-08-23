@@ -9,7 +9,7 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-22"  # 程式版本流水號自動 +1
+VERSION_SN = "v2026.08.22-23"  # 程式版本流水號自動 +1
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
 # --- 自定義專業深色綠調戰情室風格排版與高對比深淺色優化 ---
@@ -262,7 +262,7 @@ if menu == "🔍 異常查詢立案":
             
             for i, txt in enumerate(clean_steps, 1):
                 prob = probs[txt]["prob"]
-                # 依照 100%、75%、50%、25%、0% 規格設定高對比色彩
+                # 依照 100%、75%、50%、25%、0% 規格設定高對比色彩（整行同色，不顯示歷史推薦度文字）
                 if prob >= 100.0:
                     color_style = "color: #2ec4b6; font-weight: bold;"
                 elif prob >= 75.0:
@@ -272,9 +272,9 @@ if menu == "🔍 異常查詢立案":
                 elif prob >= 25.0:
                     color_style = "color: #fb8500; font-weight: bold;"
                 else:
-                    color_style = "color: #e63946; font-weight: bold;"
+                    color_style = "color: #8d99ae; font-weight: bold;"
                 
-                st.markdown(f"&nbsp;&nbsp;**{i}. {txt}**: <span style='{color_style}'>({prob}%)</span> <span style='color: #a3b18a;'>歷史推薦度</span>", unsafe_allow_html=True)
+                st.markdown(f"&nbsp;&nbsp;<span style='{color_style}'>{i}. {txt}: ({prob}%)</span>", unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
             
             st.divider()
