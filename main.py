@@ -9,7 +9,7 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-26"  # 程式版本流水號自動 +1
+VERSION_SN = "v2026.08.22-27"  # 程式版本流水號自動 +1
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
 # --- 自定義專業深色綠調戰情室風格排版與高對比深淺色優化 ---
@@ -283,18 +283,17 @@ if menu == "🔍 異常查詢立案":
             
             if st.button("🚀 確認送出並完成立案", use_container_width=True):
                 if action.strip():
-                    # 項次 36：加強版模糊比對，只要回報文字包含步驟關鍵字或編號即自動 +1
+                    # 項次 37 邏輯修正：嚴謹比對前端回報內容與後台步驟清單，將對應步驟次數 +1 同步更新
                     step_counts = found_item.get('step_counts', {})
                     matched_step = None
                     action_lower = action.strip().lower()
                     
                     for idx, step in enumerate(clean_steps):
                         step_lower = step.lower()
-                        # 比對完整字串、部分關鍵字或數字編號 (例如輸入 "3" 或 "散孔" 或 "更換主軸")
+                        # 比對完整字串、數字編號或關鍵字
                         if (action_lower in step_lower) or (step_lower in action_lower) or (str(idx+1) == action_lower.strip('.')):
                             matched_step = step
                             break
-                        # 擷取關鍵字比對 (以空格或標點符號分割)
                         keywords = [kw for kw in re.split(r'[\s\u3000\-_、，,]+', step_lower) if len(kw) > 1]
                         if any(kw in action_lower for kw in keywords):
                             matched_step = step
