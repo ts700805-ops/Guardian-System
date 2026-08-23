@@ -9,47 +9,58 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-07"  # 程式版本流水號自動 +1
+VERSION_SN = "v2026.08.22-08"  # 程式版本流水號自動 +1
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
-# --- 自定義專業深色綠調戰情室風格排版 ---
+# --- 自定義專業深色綠調戰情室風格排版與高對比深淺色優化 ---
 st.markdown("""
     <style>
     /* 整個頁面主體套用深色戰情室風格，底部漸層綠色 */
     .stApp {
-        background: linear-gradient(180deg, #0d1b1e 0%, #11221c 50%, #1b382b 100%);
+        background: linear-gradient(180deg, #091310 0%, #0d1f18 50%, #14362b 100%);
         background-attachment: fixed;
-        color: #e0f2f1;
+        color: #f1f8f6;
     }
     .main-header {
         background: linear-gradient(135deg, #1b4d3e, #0f2d22);
-        color: #a7f3d0;
+        color: #ffffff;
         padding: 20px;
         border-radius: 10px;
         margin-bottom: 20px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.4);
         border: 1px solid #2d6a4f;
     }
     .query-card {
-        background-color: #132a22;
-        border-left: 5px solid #52b788;
+        background-color: #112a21;
+        border-left: 6px solid #52b788;
         padding: 20px;
         border-radius: 8px;
         margin-bottom: 20px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         border: 1px solid #1b4d3e;
     }
     .solution-box {
-        background-color: #183329;
+        background-color: #143026;
         padding: 15px;
         border-radius: 6px;
         margin-top: 10px;
         margin-bottom: 15px;
         border: 1px solid #2d6a4f;
     }
-    /* 調整文字顏色適應深色佈景 */
-    h1, h2, h3, h4, h5, h6, p, span, label {
-        color: #e0f2f1 !important;
+    /* 優化文字與標題的高對比度，確保深淺色清晰可辨 */
+    h1, h2, h3, h4, h5, h6, label, .stMarkdown p {
+        color: #f1f8f6 !important;
+    }
+    /* 側邊欄與按鈕深淺色搭配優化 */
+    .stButton>button {
+        background-color: #1b4d3e !important;
+        color: #ffffff !important;
+        border: 1px solid #52b788 !important;
+        font-weight: bold;
+    }
+    .stButton>button:hover {
+        background-color: #2d6a4f !important;
+        color: #ffffff !important;
     }
     </style>
 """, unsafe_allow_html=True)
