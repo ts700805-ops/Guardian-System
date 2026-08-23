@@ -142,36 +142,25 @@ def render_page(current_menu):
         """, unsafe_allow_html=True)
 
         st.markdown('<div class="quality-card">', unsafe_allow_html=True)
-        st.markdown("### 📋 目前的異常分類選項")
+        st.markdown("### 📋 設定異常分類選項")
+        st.markdown("請在下方文字框中輸入分類項目，多個選項請用半形或全形逗號 `,` 分隔（例如：`設備異常, 材料異常, 操作疏失`）。")
+
+        # 將現有清單組合成用逗號分隔的字串預設顯示在文字框中
+        current_str = ", ".join(categories)
         
-        # 顯示與編輯現有分類
-        for idx, cat in enumerate(categories):
-            col_c1, col_c2 = st.columns([4, 1])
-            with col_c1:
-                updated_cat = st.text_input(f"分類 {idx+1}", value=cat, key=f"cat_input_{idx}")
-                categories[idx] = updated_cat
-            with col_c2:
-                if st.button("🗑️ 刪除", key=f"del_cat_{idx}"):
-                    categories.pop(idx)
-                    save_categories(categories)
-                    st.success("已刪除分類！")
-                    st.rerun()
-
-        st.markdown("---")
-        st.markdown("### ➕ 新增分類選項")
-        new_cat = st.text_input("新異常分類名稱", key="new_cat_name")
-        if st.button("確認新增分類", key="add_cat_btn"):
-            if new_cat.strip() and new_cat.strip() not in categories:
-                categories.append(new_cat.strip())
-                save_categories(categories)
-                st.success(f"成功新增分類：{new_cat}")
-                st.rerun()
-            else:
-                st.warning("請輸入有效的分類名稱或避免重複。")
-
-        if st.button("儲存所有分類變更", key="save_cats_btn"):
-            save_categories([c.strip() for c in categories if c.strip()])
-            st.balloons()
-            st.success("🎉 分類設定已成功同步更新！")
-            st.rerun()
+        with st.form("category_edit_form"):
+            cats_input = st.text_area("分類項目清單 (以逗號分隔)", value=current_str, height=150)
+            submitted_cats = st.form_submit_button("💾 儲存分類設定", use_container_width=True)
+            
+            if submitted_cats:
+                # 透過逗號分割並去除前後空白與空項目
+                raw_list = cats_input.replace('，', ',').split(',')
+                new_cats = [item.strip() for item in raw_list if item.strip()]
+                
+                if new_cats:
+                    save_categories(new_cats)
+                    st.balloons()
+                    st.success("🎉 下拉式選單分類設定已成功更新！")
+                else:
+                    st.warning("⚠️ 請至少輸入一個有效的分類項目。")
         st.markdown('</div>', unsafe_allow_html=True)
