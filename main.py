@@ -9,19 +9,17 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-37"  # 程式版本流水號自動 +1
+VERSION_SN = "v2026.08.22-38"  # 程式版本流水號自動 +1
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
 # --- 自定義專業深色綠調戰情室風格排版與高對比深淺色優化 ---
 st.markdown("""
     <style>
-    /* 整個頁面主體套用深色戰情室風格，底部漸層綠色 */
     .stApp {
         background: linear-gradient(180deg, #091310 0%, #0d1f18 50%, #14362b 100%);
         background-attachment: fixed;
         color: #f1f8f6;
     }
-    /* 全面套用至側邊欄導航介面 */
     section[data-testid="stSidebar"] {
         background-color: #0b1a14 !important;
         border-right: 1px solid #1b4d3e;
@@ -55,11 +53,9 @@ st.markdown("""
         margin-bottom: 15px;
         border: 1px solid #2d6a4f;
     }
-    /* 優化文字與標題的高對比度 */
     h1, h2, h3, h4, h5, h6, label, .stMarkdown p {
         color: #f1f8f6 !important;
     }
-    /* 統計頁面標題與表格內容黃色專用與加上線格 */
     .stat-title {
         color: #ffd700 !important;
     }
@@ -73,7 +69,6 @@ st.markdown("""
     div[data-testid="stTable"] span {
         color: #ffd700 !important;
     }
-    /* 修正輸入框背景與文字顏色，解決過亮看不清楚的問題 */
     input, textarea, select {
         background-color: #112a21 !important;
         color: #f1f8f6 !important;
@@ -83,7 +78,6 @@ st.markdown("""
         background-color: #112a21 !important;
         color: #f1f8f6 !important;
     }
-    /* 側邊欄按鈕設計：綠色系邊框 */
     section[data-testid="stSidebar"] .stButton>button {
         width: 100%;
         background-color: #112a21 !important;
@@ -111,17 +105,13 @@ if not firebase_admin._apps:
     except Exception as e:
         st.error(f"Firebase 初始化失敗：{e}")
 
-# 獲取台灣時間 (UTC+8)
 def get_taiwan_time():
     return datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8)))
 
-# 檔案路徑 (僅用於首次遷移資料)
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 USER_FILE = os.path.join(BASE_PATH, 'users.json')
 HANDBOOK_FILE = os.path.join(BASE_PATH, 'handbook.json')
 LOG_FILE = os.path.join(BASE_PATH, 'work_logs.txt')
-
-# --- Firebase 核心處理函數 ---
 
 def load_handbook():
     ref = db.reference('handbook')
@@ -187,7 +177,6 @@ def calculate_step_probabilities(found_item, step_list):
             
     return step_stats
 
-# --- 登入系統 ---
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
@@ -206,7 +195,6 @@ if not st.session_state.logged_in:
             st.error("❌ 此帳號驗證失敗或已被凍結！")
     st.stop()
 
-# --- 主程式側邊欄導航設定 ---
 st.sidebar.title(f"👤 {st.session_state.user_name}")
 st.sidebar.caption(f"版本：{VERSION_SN}")
 
@@ -229,7 +217,6 @@ if st.sidebar.button("04. ⚙️ 管理後台", key="b4"):
     st.session_state.menu_choice = "⚙️ 管理後台"
     st.rerun()
 
-# 分隔線與品質異常導航入口按鈕（點擊後直接交由 main2 渲染）
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 📈 品質異常導航")
 if st.sidebar.button("05. 📈 異常紀錄查詢", key="b5"):
@@ -238,13 +225,15 @@ if st.sidebar.button("05. 📈 異常紀錄查詢", key="b5"):
 if st.sidebar.button("06. ➕ 異常項目建立", key="b6"):
     st.session_state.menu_choice = "➕ 異常項目建立"
     st.rerun()
+if st.sidebar.button("07. ⚙️ 異常後台管理", key="b7"):
+    st.session_state.menu_choice = "07. 異常後台管理"
+    st.rerun()
 
 menu = st.session_state.menu_choice
 handbook = load_handbook()
 if 'clear_flag' not in st.session_state: st.session_state.clear_flag = 0
 
-# --- 路由分發邏輯 ---
-if menu in ["📈 異常紀錄查詢", "➕ 異常項目建立"]:
+if menu in ["📈 異常紀錄查詢", "➕ 異常項目建立", "07. 異常後台管理"]:
     try:
         import main2
         main2.render_page(menu)
@@ -563,7 +552,7 @@ elif menu == "⚙️ 管理後台":
                     st.balloons()
                     st.success("修改成功並已同步記錄至歷史紀錄！")
                 
-                del_pwd = st.text_input("輸入刪除密碼 (0000)", type="password", key=f"del_pwd_{i}")
+                del_pwd = st.text_input("請輸入刪除密碼 (0000)", type="password", key=f"del_pwd_{i}")
                 if st.button("刪除項目", key=f"del_h_{i}"):
                     if del_pwd == "0000":
                         deleted_item = handbook.pop(i)
