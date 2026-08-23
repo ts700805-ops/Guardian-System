@@ -9,7 +9,7 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-19"  # 程式版本流水號自動 +1
+VERSION_SN = "v2026.08.22-20"  # 程式版本流水號自動 +1
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
 # --- 自定義專業深色綠調戰情室風格排版與高對比深淺色優化 ---
@@ -169,30 +169,25 @@ def add_log(entry):
     logs.append(entry.strip())
     ref.set(logs)
 
-def calculate_step_probabilities(issue_name, step_list):
-    """根據統計次數正確計算百分比，確保總和合理且符合實際加權"""
+def calculate_step_probabilities(found_item, step_list):
+    """根據手冊項目中記錄的各步驟次數設定計算百分比，確保總和為 100%"""
     total_steps = len(step_list)
     if total_steps == 0: return {}
     
-    step_stats = {step: {"count": 0, "prob": 0.0} for step in step_list}
-    logs = load_logs()
+    step_counts = found_item.get('step_counts', {})
+    total_counts = sum(step_counts.get(step, 0) for step in step_list)
     
-    # 統計各步驟在歷史紀錄中被提及或符合的次數
-    total_matches = 0
-    for step in step_list:
-        matched_count = sum(1 for r in logs if "問題：" in r and issue_name in r and step in r)
-        step_stats[step]["count"] = matched_count
-        total_matches += matched_count
-    
-    if total_matches > 0:
+    step_stats = {}
+    if total_counts > 0:
         for step in step_list:
-            prob = (step_stats[step]["count"] / total_matches) * 100.0
-            step_stats[step]["prob"] = round(prob, 1)
+            cnt = step_counts.get(step, 0)
+            prob = round((cnt / total_counts) * 100.0, 1)
+            step_stats[step] = {"count": cnt, "prob": prob}
     else:
-        # 若無歷史相符記錄，則依項目數量平均分配總計 100%
+        # 若未設定次數，則預設平均分配
         base_prob = round(100.0 / total_steps, 1)
         for step in step_list:
-            step_stats[step]["prob"] = base_prob
+            step_stats[step] = {"count": 0, "prob": base_prob}
             
     return step_stats
 
@@ -265,7 +260,7 @@ if menu == "🔍 異常查詢立案":
             raw_steps = raw_sol.replace('；', ';').replace('\n', ';').split(';')
             clean_steps = [re.sub(r'^\d+[\.\s]*', '', s.strip()) for s in raw_steps if s.strip()]
             
-            probs = calculate_step_probabilities(found_item['issue'], clean_steps)
+            probs = calculate_step_probabilities(found_item, clean_steps)
             
             for i, txt in enumerate(clean_steps, 1):
                 prob = probs[txt]["prob"]
@@ -432,7 +427,8 @@ elif menu == "⚙️ 管理後台":
                     "order_no": n_order, 
                     "keyword": n_kw, 
                     "solution": n_sol,
-                    "image_path": image_path
+                    "image_path": image_path,
+                    "step_counts": {}
                 })
                 save_handbook(handbook)
                 
@@ -468,6 +464,18 @@ elif menu == "⚙️ 管理後台":
                 e_kw = st.text_input("關鍵字", item.get('keyword', ''), key=f"kw_{i}")
                 e_sol = st.text_area("異常排除方式", item['solution'], key=f"sol_{i}", height=200)
                 
+                # 新增：針對各排除步驟之次數設定（項次 30 智慧推薦次數調整）
+                st.markdown("---")
+                st.subheader("⚙️ 智慧推薦排除方式次數調整")
+                raw_steps = e_sol.replace('；', ';').replace('\n', ';').split(';')
+                clean_steps = [re.sub(r'^\d+[\.\s]*', '', s.strip()) for s in raw_steps if s.strip()]
+                
+                current_step_counts = item.get('step_counts', {})
+                new_step_counts = {}
+                for s_idx, step_txt in enumerate(clean_steps):
+                    default_c = current_step_counts.get(step_txt, 0)
+                    new_step_counts[step_txt] = st.number_input(f"排除次數 - {s_idx+1}. {step_txt[:20]}...", value=int(default_c), min_value=0, key=f"step_cnt_{i}_{s_idx}")
+                
                 # 編輯與持久保存照片功能
                 current_img = item.get('image_path', '')
                 if current_img:
@@ -490,7 +498,8 @@ elif menu == "⚙️ 管理後台":
                         "order_no": e_order,
                         "keyword": e_kw,
                         "solution": e_sol,
-                        "image_path": final_img_path
+                        "image_path": final_img_path,
+                        "step_counts": new_step_counts
                     }
                     save_handbook(handbook)
                     
@@ -498,7 +507,7 @@ elif menu == "⚙️ 管理後台":
                     log_entry = (f"● 時間：{get_taiwan_time().strftime('%Y-%m-%d %H:%M:%S')}\n"
                                  f"● 人員：{st.session_state.user_name} ({st.session_state.uid})\n"
                                  f"● 問題：{e_issue} (後台編輯修改)\n"
-                                 f"● 經過：修改製令編號 [{e_order}]、關鍵字、照片與異常排除方式內容")
+                                 f"● 經過：修改製令編號 [{e_order}]、關鍵字、照片與異常排除方式內容及次數")
                     add_log(log_entry)
                     
                     st.balloons()
