@@ -72,7 +72,6 @@ def render_page(current_menu):
         </style>
     """, unsafe_allow_html=True)
 
-    # 讀取與儲存分類選項
     def load_categories():
         ref = db.reference('quality_categories')
         cats = ref.get()
@@ -81,7 +80,6 @@ def render_page(current_menu):
             ref.set(cats)
         return cats
 
-    # 讀取與儲存品質異常紀錄
     def load_quality_records():
         ref = db.reference('quality_records')
         data = ref.get()
@@ -106,87 +104,95 @@ def render_page(current_menu):
         
         if query.strip():
             search_terms = query.lower().split()
-            filtered_records = []
-            for rec in records:
+            filtered_indices = []
+            for idx, rec in enumerate(records):
                 combined_text = f"{rec.get('order', '')} {rec.get('date', '')} {rec.get('category', '')} {rec.get('content', '')} {rec.get('solution', '')} {rec.get('countermeasure', '')} {rec.get('status', '')} {rec.get('person', '')}".lower()
                 if all(term in combined_text for term in search_terms):
-                    filtered_records.append(rec)
+                    filtered_indices.append(idx)
         else:
-            filtered_records = records
+            filtered_indices = list(range(len(records)))
 
-        st.markdown(f"### 📋 搜尋結果 (共 {len(filtered_records)} 筆)")
+        st.markdown(f"### 📋 搜尋結果總覽 (共 {len(filtered_indices)} 筆)")
         
-        if filtered_records:
-            for idx, rec in enumerate(records):
-                # 只顯示符合搜尋條件的項目
-                if rec not in filtered_records:
-                    continue
+        if filtered_indices:
+            # 轉換為更乾淨的卡片清單與表格化選擇形式
+            for idx in filtered_indices:
+                rec = records[idx]
+                card_label = f"📌 【製令：{rec.get('order', '無')}】 日期：{rec.get('date', '')} | 分類：{rec.get('category', '')} | 人員：{rec.get('person', '')}"
                 
-                with st.expander(f"📌 製令：{rec.get('order', '無')} | 日期：{rec.get('date', '')} | 分類：{rec.get('category', '')} | 人員：{rec.get('person', '')}"):
+                with st.expander(card_label):
+                    # 採用左右分欄讓版面更清爽
+                    tab_view, tab_edit, tab_del = st.tabs(["👁️ 內容檢視", "✏️ 編輯修改", "🗑️ 刪除紀錄"])
                     
-                    # 編輯表單
-                    with st.form(f"edit_form_{idx}"):
-                        st.markdown(f"### ✏️ 編輯紀錄 #{idx+1}")
-                        e_order = st.text_input("1. 製令", value=rec.get('order', ''), key=f"e_ord_{idx}")
-                        
-                        # 處理日期解析
-                        try:
-                            default_date = datetime.datetime.strptime(rec.get('date', str(datetime.date.today())), "%Y-%m-%d").date()
-                        except:
-                            default_date = datetime.date.today()
-                        e_date = st.date_input("2. 建立日期", value=default_date, key=f"e_date_{idx}")
-                        
-                        # 異常分類下拉選單
-                        cat_list = categories
-                        curr_cat = rec.get('category', '')
-                        cat_index = cat_list.index(curr_cat) if curr_cat in cat_list else 0
-                        e_category = st.selectbox("3. 異常分類", options=cat_list, index=cat_index, key=f"e_cat_{idx}")
-                        
-                        e_content = st.text_area("4. 異常內容", value=rec.get('content', ''), key=f"e_cont_{idx}")
-                        e_solution = st.text_area("5. 排除方式", value=rec.get('solution', ''), key=f"e_sol_{idx}")
-                        e_countermeasure = st.text_area("6. 對策", value=rec.get('countermeasure', ''), key=f"e_cm_{idx}")
-                        e_status = st.text_input("7. 追蹤狀況", value=rec.get('status', ''), key=f"e_stat_{idx}")
-                        e_person = st.text_input("8. 異常人員", value=rec.get('person', ''), key=f"e_pers_{idx}")
-                        
-                        # 密碼驗證與儲存按鈕
-                        e_pwd = st.text_input("請輸入修改密碼 (0000)", type="password", key=f"e_pwd_{idx}")
-                        
-                        submitted_edit = st.form_submit_button("💾 確認儲存修改", use_container_width=True)
-                        if submitted_edit:
-                            if e_pwd == "0000":
-                                records[idx] = {
-                                    "order": e_order,
-                                    "date": str(e_date),
-                                    "category": e_category,
-                                    "content": e_content,
-                                    "solution": e_solution,
-                                    "countermeasure": e_countermeasure,
-                                    "status": e_status,
-                                    "person": e_person
-                                }
-                                save_quality_records(records)
-                                st.balloons()
-                                st.success("🎉 紀錄修改成功！")
-                                st.rerun()
-                            else:
-                                st.error("❌ 密碼錯誤！")
+                    with tab_view:
+                        col_v1, col_v2 = st.columns(2)
+                        with col_v1:
+                            st.markdown(f"**1. 製令：** {rec.get('order', '')}")
+                            st.markdown(f"**2. 建立日期：** {rec.get('date', '')}")
+                            st.markdown(f"**3. 異常分類：** {rec.get('category', '')}")
+                            st.markdown(f"**4. 異常內容：** {rec.get('content', '')}")
+                        with col_v2:
+                            st.markdown(f"**5. 排除方式：** {rec.get('solution', '')}")
+                            st.markdown(f"**6. 對策：** {rec.get('countermeasure', '')}")
+                            st.markdown(f"**7. 追蹤狀況：** {rec.get('status', '')}")
+                            st.markdown(f"**8. 異常人員：** {rec.get('person', '')}")
 
-                    st.markdown("---")
-                    
-                    # 刪除區塊
-                    with st.form(f"delete_form_{idx}"):
-                        st.markdown(f"### 🗑️ 刪除紀錄 #{idx+1}")
-                        d_pwd = st.text_input("請輸入刪除密碼 (0000)", type="password", key=f"d_pwd_{idx}")
-                        submitted_del = st.form_submit_button("🚨 確認刪除此筆紀錄", use_container_width=True)
-                        if submitted_del:
-                            if d_pwd == "0000":
-                                records.pop(idx)
-                                save_quality_records(records)
-                                st.balloons()
-                                st.success("🗑️ 紀錄已成功刪除！")
-                                st.rerun()
-                            else:
-                                st.error("❌ 刪除密碼錯誤！")
+                    with tab_edit:
+                        with st.form(f"edit_form_{idx}"):
+                            e_order = st.text_input("1. 製令", value=rec.get('order', ''), key=f"e_ord_{idx}")
+                            try:
+                                default_date = datetime.datetime.strptime(rec.get('date', str(datetime.date.today())), "%Y-%m-%d").date()
+                            except:
+                                default_date = datetime.date.today()
+                            e_date = st.date_input("2. 建立日期", value=default_date, key=f"e_date_{idx}")
+                            
+                            cat_list = categories
+                            curr_cat = rec.get('category', '')
+                            cat_index = cat_list.index(curr_cat) if curr_cat in cat_list else 0
+                            e_category = st.selectbox("3. 異常分類", options=cat_list, index=cat_index, key=f"e_cat_{idx}")
+                            
+                            e_content = st.text_area("4. 異常內容", value=rec.get('content', ''), key=f"e_cont_{idx}")
+                            e_solution = st.text_area("5. 排除方式", value=rec.get('solution', ''), key=f"e_sol_{idx}")
+                            e_countermeasure = st.text_area("6. 對策", value=rec.get('countermeasure', ''), key=f"e_cm_{idx}")
+                            e_status = st.text_input("7. 追蹤狀況", value=rec.get('status', ''), key=f"e_stat_{idx}")
+                            e_person = st.text_input("8. 異常人員", value=rec.get('person', ''), key=f"e_pers_{idx}")
+                            
+                            e_pwd = st.text_input("請輸入授權密碼", type="password", key=f"e_pwd_{idx}")
+                            
+                            submitted_edit = st.form_submit_button("💾 確認儲存修改", use_container_width=True)
+                            if submitted_edit:
+                                if e_pwd == "0000":
+                                    records[idx] = {
+                                        "order": e_order,
+                                        "date": str(e_date),
+                                        "category": e_category,
+                                        "content": e_content,
+                                        "solution": e_solution,
+                                        "countermeasure": e_countermeasure,
+                                        "status": e_status,
+                                        "person": e_person
+                                    }
+                                    save_quality_records(records)
+                                    st.balloons()
+                                    st.success("🎉 紀錄修改成功！")
+                                    st.rerun()
+                                else:
+                                    st.error("❌ 授權密碼錯誤！")
+
+                    with tab_del:
+                        with st.form(f"delete_form_{idx}"):
+                            st.warning("⚠️ 刪除後將無法復原，請謹慎操作。")
+                            d_pwd = st.text_input("請輸入授權密碼", type="password", key=f"d_pwd_{idx}")
+                            submitted_del = st.form_submit_button("🚨 確認刪除此筆紀錄", use_container_width=True)
+                            if submitted_del:
+                                if d_pwd == "0000":
+                                    records.pop(idx)
+                                    save_quality_records(records)
+                                    st.balloons()
+                                    st.success("🗑️ 紀錄已成功刪除！")
+                                    st.rerun()
+                                else:
+                                    st.error("❌ 授權密碼錯誤！")
         else:
             st.info("尚無符合條件的品質異常紀錄。")
             
