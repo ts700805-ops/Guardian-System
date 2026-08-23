@@ -368,14 +368,13 @@ def render_page(current_menu):
                 )
                 pie = base.mark_arc(innerRadius=60, outerRadius=110)
                 
-                # 將分類名稱與百分比清楚顯示在圓餅圖外圍
                 text = base.mark_text(radius=140, size=14, fontWeight="bold", align="center").encode(
                     text=alt.Text(field="標籤文字", type="nominal"),
                     theta=alt.Theta(field="件數", type="quantitative")
                 )
 
                 st.altair_chart((pie + text).properties(width=350, height=350), use_container_width=True)
-                st.markdown(f"<h4 style='text-align: center;'>總體異常分佈 (總計：{total_cnt} 筆)</h4>", unsafe_allow_html=True)
+                st.markdown(f"<h4 style='text-align: center;'>異常分類圓餅圖 (總計：{total_cnt} 筆)</h4>", unsafe_allow_html=True)
 
             with col_bars:
                 st.markdown("### 各分類佔比摘要")
