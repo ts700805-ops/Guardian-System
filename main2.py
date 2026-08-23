@@ -305,19 +305,23 @@ def render_page(current_menu):
             total_cnt = len(filtered_recs)
             cat_counts = df['category'].value_counts()
             
+            # 定義與 Altair category10 配色一致的標準色彩代碼
+            color_palette = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+            
             chart_data = []
-            for cat, cnt in cat_counts.items():
+            for i, (cat, cnt) in enumerate(cat_counts.items()):
                 pct = round((cnt / total_cnt) * 100, 1)
+                c_color = color_palette[i % len(color_palette)]
                 chart_data.append({
                     '分類': cat,
                     '件數': cnt,
-                    '百分比': pct
+                    '百分比': pct,
+                    '顏色': c_color
                 })
             chart_df = pd.DataFrame(chart_data)
 
             st.markdown("---")
             
-            # 左右分欄：左側放甜甜圈圖，右側放專業進度條與百分比
             col_chart, col_bars = st.columns([1, 1.2])
             
             with col_chart:
@@ -328,11 +332,6 @@ def render_page(current_menu):
                 )
                 pie = base.mark_arc(innerRadius=70, outerRadius=120)
                 
-                # 圓餅圖中心文字疊加
-                donut_text = alt.Chart(pd.DataFrame({'text': ['總體異常分佈', f'{total_cnt} 筆']})).mark_text(
-                    align='center', baseline='middle', fontSize=14, fontWeight='bold', color='#0b192c'
-                ).encode(text='text')
-                
                 st.altair_chart((pie).properties(width=300, height=300), use_container_width=True)
                 st.markdown(f"<h4 style='text-align: center;'>總體異常分佈 (總計：{total_cnt} 筆)</h4>", unsafe_allow_html=True)
 
@@ -342,12 +341,18 @@ def render_page(current_menu):
                     cat_name = row['分類']
                     pct_val = row['百分比']
                     cnt_val = row['件數']
+                    bar_color = row['顏色']
                     
                     st.markdown(f"**{cat_name}** ({cnt_val} 件)")
-                    st.progress(pct_val / 100.0)
-                    st.markdown(f"<div style='text-align: right; font-weight: bold; margin-bottom: 10px;'>{pct_val}%</div>", unsafe_allow_html=True)
+                    # 使用自定義 HTML/CSS 呈現較粗且顏色一致的進度條
+                    bar_html = f"""
+                    <div style="background-color: #e0d0b0; border-radius: 10px; width: 100%; height: 22px; margin-bottom: 5px; overflow: hidden; border: 1px solid #d4a373;">
+                        <div style="background-color: {bar_color}; width: {pct_val}%; height: 100%; border-radius: 8px 0 0 8px;"></div>
+                    </div>
+                    <div style="text-align: right; font-weight: bold; color: #0b192c; margin-bottom: 15px;">{pct_val}%</div>
+                    """
+                    st.markdown(bar_html, unsafe_allow_html=True)
 
-            # 底部摘要統計列
             st.markdown("---")
             summary_str = " · ".join([f"{row['分類']} {row['件數']} 件 ({row['百分比']}%)" for index, row in chart_df.iterrows()])
             st.markdown(f"**統計摘要：** {summary_str}")
