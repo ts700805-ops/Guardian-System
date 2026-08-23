@@ -9,7 +9,7 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-34"  # 程式版本流水號自動 +1
+VERSION_SN = "v2026.08.22-35"  # 程式版本流水號自動 +1
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
 # --- 自定義專業深色綠調戰情室風格排版與高對比深淺色優化 ---
@@ -83,16 +83,20 @@ st.markdown("""
         background-color: #112a21 !important;
         color: #f1f8f6 !important;
     }
-    /* 按鈕深淺色搭配優化 */
-    .stButton>button {
-        background-color: #1b4d3e !important;
+    /* 側邊欄按鈕設計，模仿照片中的區塊按鈕樣式 */
+    section[data-testid="stSidebar"] .stButton>button {
+        width: 100%;
+        background-color: #112a21 !important;
         color: #ffffff !important;
-        border: 1px solid #52b788 !important;
+        border: 1px solid #2d6a4f !important;
+        border-radius: 8px;
+        text-align: left;
         font-weight: bold;
+        margin-bottom: 4px;
     }
-    .stButton>button:hover {
-        background-color: #2d6a4f !important;
-        color: #ffffff !important;
+    section[data-testid="stSidebar"] .stButton>button:hover {
+        background-color: #1b4d3e !important;
+        border: 1px solid #52b788 !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -209,38 +213,35 @@ if not st.session_state.logged_in:
             st.error("❌ 此帳號驗證失敗或已被凍結！")
     st.stop()
 
-# --- 主程式側邊欄導航設定（採用單一導覽群組，確保永遠只有一個紅圈點選） ---
+# --- 主程式側邊欄導航設定（採用按鈕點選形式，完美對應照片風格） ---
 st.sidebar.title(f"👤 {st.session_state.user_name}")
 st.sidebar.caption(f"版本：{VERSION_SN}")
 
+if 'menu_choice' not in st.session_state:
+    st.session_state.menu_choice = "🔍 異常查詢立案"
+
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🛠️ 異常排除手冊導航")
-menu_hb = st.sidebar.radio("異常排除手冊導航", [
-    "🔍 異常查詢立案", 
-    "📜 歷史回報紀錄", 
-    "📊 異常數據統計", 
-    "⚙️ 管理後台"
-], label_visibility="collapsed")
+if st.sidebar.button("01. 🔍 異常查詢立案"):
+    st.session_state.menu_choice = "🔍 異常查詢立案"
+    st.rerun()
+if st.sidebar.button("02. 📜 歷史回報紀錄"):
+    st.session_state.menu_choice = "📜 歷史回報紀錄"
+    st.rerun()
+if st.sidebar.button("03. 📊 異常數據統計"):
+    st.session_state.menu_choice = "📊 異常數據統計"
+    st.rerun()
+if st.sidebar.button("04. ⚙️ 管理後台"):
+    st.session_state.menu_choice = "⚙️ 管理後台"
+    st.rerun()
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 📈 品質異常導航")
-# 透過 format_func 或是結合統一變數，改用獨立點選但透過狀態切換互斥
-# 為了完美符合您的需求，我們將兩者整合成同一個選單或透過 session_state 互斥
-if 'selected_menu' not in st.session_state:
-    st.session_state.selected_menu = "🔍 異常查詢立案"
+if st.sidebar.button("05. 📈 異常紀錄查詢"):
+    st.session_state.menu_choice = "📈 異常紀錄查詢"
+    st.rerun()
 
-# 建立統一的導覽清單
-all_nav_options = [
-    "🔍 異常查詢立案", 
-    "📜 歷史回報紀錄", 
-    "📊 異常數據統計", 
-    "⚙️ 管理後台",
-    "📈 異常紀錄查詢"
-]
-
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 📌 系統功能導航")
-menu = st.sidebar.radio("選擇功能導航", all_nav_options, label_visibility="collapsed")
+menu = st.session_state.menu_choice
 
 handbook = load_handbook()
 if 'clear_flag' not in st.session_state: st.session_state.clear_flag = 0
