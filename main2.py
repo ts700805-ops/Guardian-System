@@ -95,12 +95,12 @@ def render_page(current_menu):
     if current_menu == "📈 異常紀錄查詢":
         st.markdown("""
             <div class="quality-header">
-                <h2>📈 品質異常紀錄查詢與模糊搜尋</h2>
+                <h2>📈 品質異常紀錄查詢與管理</h2>
             </div>
         """, unsafe_allow_html=True)
 
         st.markdown('<div class="quality-card">', unsafe_allow_html=True)
-        query = st.text_input("🔍 輸入關鍵字進行全欄位模糊搜尋 (可針對製令、分類、內容、排除方式、對策、狀況、人員等)")
+        query = st.text_input("🔍 輸入關鍵字進行全欄位模糊搜尋 (製令、分類、內容、排除方式、對策、狀況、人員等)")
         
         records = load_quality_records()
         
@@ -117,16 +117,76 @@ def render_page(current_menu):
         st.markdown(f"### 📋 搜尋結果 (共 {len(filtered_records)} 筆)")
         
         if filtered_records:
-            for i, rec in enumerate(filtered_records):
+            for idx, rec in enumerate(records):
+                # 只顯示符合搜尋條件的項目
+                if rec not in filtered_records:
+                    continue
+                
                 with st.expander(f"📌 製令：{rec.get('order', '無')} | 日期：{rec.get('date', '')} | 分類：{rec.get('category', '')} | 人員：{rec.get('person', '')}"):
-                    st.markdown(f"**1. 製令：** {rec.get('order', '')}")
-                    st.markdown(f"**2. 建立日期：** {rec.get('date', '')}")
-                    st.markdown(f"**3. 異常分類：** {rec.get('category', '')}")
-                    st.markdown(f"**4. 異常內容：** {rec.get('content', '')}")
-                    st.markdown(f"**5. 排除方式：** {rec.get('solution', '')}")
-                    st.markdown(f"**6. 對策：** {rec.get('countermeasure', '')}")
-                    st.markdown(f"**7. 追蹤狀況：** {rec.get('status', '')}")
-                    st.markdown(f"**8. 異常人員：** {rec.get('person', '')}")
+                    
+                    # 編輯表單
+                    with st.form(f"edit_form_{idx}"):
+                        st.markdown(f"### ✏️ 編輯紀錄 #{idx+1}")
+                        e_order = st.text_input("1. 製令", value=rec.get('order', ''), key=f"e_ord_{idx}")
+                        
+                        # 處理日期解析
+                        try:
+                            default_date = datetime.datetime.strptime(rec.get('date', str(datetime.date.today())), "%Y-%m-%d").date()
+                        except:
+                            default_date = datetime.date.today()
+                        e_date = st.date_input("2. 建立日期", value=default_date, key=f"e_date_{idx}")
+                        
+                        # 異常分類下拉選單
+                        cat_list = categories
+                        curr_cat = rec.get('category', '')
+                        cat_index = cat_list.index(curr_cat) if curr_cat in cat_list else 0
+                        e_category = st.selectbox("3. 異常分類", options=cat_list, index=cat_index, key=f"e_cat_{idx}")
+                        
+                        e_content = st.text_area("4. 異常內容", value=rec.get('content', ''), key=f"e_cont_{idx}")
+                        e_solution = st.text_area("5. 排除方式", value=rec.get('solution', ''), key=f"e_sol_{idx}")
+                        e_countermeasure = st.text_area("6. 對策", value=rec.get('countermeasure', ''), key=f"e_cm_{idx}")
+                        e_status = st.text_input("7. 追蹤狀況", value=rec.get('status', ''), key=f"e_stat_{idx}")
+                        e_person = st.text_input("8. 異常人員", value=rec.get('person', ''), key=f"e_pers_{idx}")
+                        
+                        # 密碼驗證與儲存按鈕
+                        e_pwd = st.text_input("請輸入修改密碼 (0000)", type="password", key=f"e_pwd_{idx}")
+                        
+                        submitted_edit = st.form_submit_button("💾 確認儲存修改", use_container_width=True)
+                        if submitted_edit:
+                            if e_pwd == "0000":
+                                records[idx] = {
+                                    "order": e_order,
+                                    "date": str(e_date),
+                                    "category": e_category,
+                                    "content": e_content,
+                                    "solution": e_solution,
+                                    "countermeasure": e_countermeasure,
+                                    "status": e_status,
+                                    "person": e_person
+                                }
+                                save_quality_records(records)
+                                st.balloons()
+                                st.success("🎉 紀錄修改成功！")
+                                st.rerun()
+                            else:
+                                st.error("❌ 密碼錯誤！")
+
+                    st.markdown("---")
+                    
+                    # 刪除區塊
+                    with st.form(f"delete_form_{idx}"):
+                        st.markdown(f"### 🗑️ 刪除紀錄 #{idx+1}")
+                        d_pwd = st.text_input("請輸入刪除密碼 (0000)", type="password", key=f"d_pwd_{idx}")
+                        submitted_del = st.form_submit_button("🚨 確認刪除此筆紀錄", use_container_width=True)
+                        if submitted_del:
+                            if d_pwd == "0000":
+                                records.pop(idx)
+                                save_quality_records(records)
+                                st.balloons()
+                                st.success("🗑️ 紀錄已成功刪除！")
+                                st.rerun()
+                            else:
+                                st.error("❌ 刪除密碼錯誤！")
         else:
             st.info("尚無符合條件的品質異常紀錄。")
             
