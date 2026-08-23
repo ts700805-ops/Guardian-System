@@ -9,39 +9,47 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-06"  # 程式版本流水號自動 +1
+VERSION_SN = "v2026.08.22-07"  # 程式版本流水號自動 +1
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
-# --- 自定義專業排版與頁面底部漸層綠色底色 ---
+# --- 自定義專業深色綠調戰情室風格排版 ---
 st.markdown("""
     <style>
-    /* 整個頁面主體與底部套用漸層綠色底色 */
+    /* 整個頁面主體套用深色戰情室風格，底部漸層綠色 */
     .stApp {
-        background: linear-gradient(180deg, #ffffff 0%, #e8f5e9 50%, #c8e6c9 100%);
+        background: linear-gradient(180deg, #0d1b1e 0%, #11221c 50%, #1b382b 100%);
         background-attachment: fixed;
+        color: #e0f2f1;
     }
     .main-header {
-        background: linear-gradient(135deg, #1f4068, #162447);
-        color: white;
+        background: linear-gradient(135deg, #1b4d3e, #0f2d22);
+        color: #a7f3d0;
         padding: 20px;
         border-radius: 10px;
         margin-bottom: 20px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        border: 1px solid #2d6a4f;
     }
     .query-card {
-        background-color: #f8f9fa;
-        border-left: 5px solid #00adb5;
+        background-color: #132a22;
+        border-left: 5px solid #52b788;
         padding: 20px;
         border-radius: 8px;
         margin-bottom: 20px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        border: 1px solid #1b4d3e;
     }
     .solution-box {
-        background-color: #e8f4f8;
+        background-color: #183329;
         padding: 15px;
         border-radius: 6px;
         margin-top: 10px;
         margin-bottom: 15px;
+        border: 1px solid #2d6a4f;
+    }
+    /* 調整文字顏色適應深色佈景 */
+    h1, h2, h3, h4, h5, h6, p, span, label {
+        color: #e0f2f1 !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -355,7 +363,7 @@ elif menu == "⚙️ 管理後台":
             with st.expander(f"編輯：{item['issue']} (製令：{item.get('order_no', '無')})"):
                 e_issue = st.text_input("標題", item['issue'], key=f"is_{i}")
                 e_order = st.text_input("製令編號", item.get('order_no', ''), key=f"ord_{i}")
-                e_kw = st.text_input("關鍵字", item.get('keyword', ''), key=f"kw_{i}")  # 新增：編輯關鍵字
+                e_kw = st.text_input("關鍵字", item.get('keyword', ''), key=f"kw_{i}")
                 e_sol = st.text_area("異常排除方式", item['solution'], key=f"sol_{i}", height=200)
                 
                 # 儲存修改按鈕 (加入氣球效果與歷史紀錄同步)
@@ -363,7 +371,7 @@ elif menu == "⚙️ 管理後台":
                     handbook[i] = {
                         "issue": e_issue, 
                         "order_no": e_order,
-                        "keyword": e_kw,  # 套用更新後的關鍵字
+                        "keyword": e_kw,
                         "solution": e_sol,
                         "image_path": item.get('image_path', '')
                     }
