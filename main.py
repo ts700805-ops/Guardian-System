@@ -9,39 +9,76 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-04"  # 程式版本流水號 (日期+版本流水號)
+VERSION_SN = "v2026.08.22-12"  # 程式版本流水號自動 +1
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
-# --- 自定義專業排版與頁面底部漸層綠色底色 ---
+# --- 自定義專業深色綠調戰情室風格排版與高對比深淺色優化 ---
 st.markdown("""
     <style>
-    /* 整個頁面主體與底部套用漸層綠色底色 */
+    /* 整個頁面主體套用深色戰情室風格，底部漸層綠色 */
     .stApp {
-        background: linear-gradient(180deg, #ffffff 0%, #e8f5e9 50%, #c8e6c9 100%);
+        background: linear-gradient(180deg, #091310 0%, #0d1f18 50%, #14362b 100%);
         background-attachment: fixed;
+        color: #f1f8f6;
+    }
+    /* 全面套用至側邊欄導航介面 */
+    section[data-testid="stSidebar"] {
+        background-color: #0b1a14 !important;
+        border-right: 1px solid #1b4d3e;
+    }
+    section[data-testid="stSidebar"] * {
+        color: #f1f8f6 !important;
     }
     .main-header {
-        background: linear-gradient(135deg, #1f4068, #162447);
-        color: white;
+        background: linear-gradient(135deg, #1b4d3e, #0f2d22);
+        color: #ffffff;
         padding: 20px;
         border-radius: 10px;
         margin-bottom: 20px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.4);
+        border: 1px solid #2d6a4f;
     }
     .query-card {
-        background-color: #f8f9fa;
-        border-left: 5px solid #00adb5;
+        background-color: #112a21;
+        border-left: 6px solid #52b788;
         padding: 20px;
         border-radius: 8px;
         margin-bottom: 20px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        border: 1px solid #1b4d3e;
     }
     .solution-box {
-        background-color: #e8f4f8;
+        background-color: #143026;
         padding: 15px;
         border-radius: 6px;
         margin-top: 10px;
         margin-bottom: 15px;
+        border: 1px solid #2d6a4f;
+    }
+    /* 優化文字與標題的高對比度 */
+    h1, h2, h3, h4, h5, h6, label, .stMarkdown p {
+        color: #f1f8f6 !important;
+    }
+    /* 修正輸入框背景與文字顏色，解決過亮看不清楚的問題 */
+    input, textarea, select {
+        background-color: #112a21 !important;
+        color: #f1f8f6 !important;
+        border: 1px solid #2d6a4f !important;
+    }
+    .stTextInput input, .stTextArea textarea {
+        background-color: #112a21 !important;
+        color: #f1f8f6 !important;
+    }
+    /* 按鈕深淺色搭配優化 */
+    .stButton>button {
+        background-color: #1b4d3e !important;
+        color: #ffffff !important;
+        border: 1px solid #52b788 !important;
+        font-weight: bold;
+    }
+    .stButton>button:hover {
+        background-color: #2d6a4f !important;
+        color: #ffffff !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -123,7 +160,6 @@ def calculate_step_probabilities(issue_name, step_list):
     total_steps = len(step_list)
     if total_steps == 0: return {}
     
-    # 根據提供的排除項目動態計算初始比例 (1項100%、2項各50%...)
     initial_prob = round(100.0 / total_steps, 1)
     step_stats = {step: {"count": 0, "prob": initial_prob} for step in step_list}
     
@@ -198,8 +234,13 @@ if menu == "🔍 異常查詢立案":
             st.success(f"📌 **【檢索到的問題描述】**: {found_item['issue']}")
             if found_item.get('order_no'):
                 st.info(f"📋 製令編號：{found_item['order_no']}")
-            if found_item.get('image_path'):
-                st.image(found_item['image_path'], caption="相關附件圖片", width=300)
+            
+            # 圖片檔案安全檢查：若檔案存在才顯示，不存在則略過不報錯
+            img_path = found_item.get('image_path')
+            if img_path:
+                full_img_path = os.path.join(BASE_PATH, img_path) if not os.path.isabs(img_path) else img_path
+                if os.path.exists(full_img_path):
+                    st.image(full_img_path, caption="相關附件圖片", width=300)
             
             st.markdown('<div class="solution-box">', unsafe_allow_html=True)
             st.subheader("💡 智慧推薦異常排除方式")
@@ -239,7 +280,7 @@ if menu == "🔍 異常查詢立案":
                                  f"● 人員：{st.session_state.user_name} ({st.session_state.uid})\n"
                                  f"● 問題：{found_item['issue']}\n"
                                  f"● 經過：{action}")
-                    add_log(log_entry) # 寫入 Firebase
+                    add_log(log_entry)
                     
                     st.session_state.clear_flag += 1
                     st.balloons(); st.success("立案成功！資料已同步至雲端資料庫。")
@@ -327,7 +368,6 @@ elif menu == "⚙️ 管理後台":
                 })
                 save_handbook(handbook)
                 
-                # 新增手冊項目時同步寫入歷史紀錄與統計
                 log_entry = (f"● 時間：{get_taiwan_time().strftime('%Y-%m-%d %H:%M:%S')}\n"
                              f"● 人員：{st.session_state.user_name} ({st.session_state.uid})\n"
                              f"● 問題：{n_issue} (後台新增項目)\n"
@@ -339,25 +379,67 @@ elif menu == "⚙️ 管理後台":
                 st.rerun()
 
     with tab2:
-        for i, item in enumerate(handbook):
-            with st.expander(f"編輯：{item['issue']}"):
+        st.subheader("✏️ 編輯手冊清單")
+        # 模糊篩選功能
+        search_filter = st.text_input("🔍 輸入關鍵字、標題或製令編號進行模糊篩選", key="edit_filter_input")
+        
+        # 根據篩選條件過濾清單
+        filtered_items = []
+        for idx, item in enumerate(handbook):
+            combined_text = f"{item.get('issue', '')} {item.get('keyword', '')} {item.get('order_no', '')} {item.get('solution', '')}".lower()
+            if not search_filter or all(term in combined_text for term in search_filter.lower().split()):
+                filtered_items.append((idx, item))
+        
+        if not filtered_items:
+            st.info("查無符合篩選條件的手冊項目")
+        
+        for i, item in filtered_items:
+            with st.expander(f"編輯：{item['issue']} (製令：{item.get('order_no', '無')})"):
                 e_issue = st.text_input("標題", item['issue'], key=f"is_{i}")
                 e_order = st.text_input("製令編號", item.get('order_no', ''), key=f"ord_{i}")
+                e_kw = st.text_input("關鍵字", item.get('keyword', ''), key=f"kw_{i}")
                 e_sol = st.text_area("異常排除方式", item['solution'], key=f"sol_{i}", height=200)
+                
+                # 儲存修改按鈕 (加入氣球效果與歷史紀錄同步)
                 if st.button("儲存修改", key=f"sv_{i}"):
                     handbook[i] = {
                         "issue": e_issue, 
                         "order_no": e_order,
-                        "keyword": item.get('keyword',''), 
+                        "keyword": e_kw,
                         "solution": e_sol,
                         "image_path": item.get('image_path', '')
                     }
                     save_handbook(handbook)
-                    st.rerun()
+                    
+                    # 同步寫入歷史紀錄
+                    log_entry = (f"● 時間：{get_taiwan_time().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                                 f"● 人員：{st.session_state.user_name} ({st.session_state.uid})\n"
+                                 f"● 問題：{e_issue} (後台編輯修改)\n"
+                                 f"● 經過：修改製令編號 [{e_order}]、關鍵字與異常排除方式內容")
+                    add_log(log_entry)
+                    
+                    st.balloons()
+                    st.success("修改成功並已同步記錄至歷史紀錄！")
+                
+                # 刪除項目 (加入密碼 0000 驗證與歷史紀錄同步)
+                del_pwd = st.text_input("請輸入刪除密碼 (0000)", type="password", key=f"del_pwd_{i}")
                 if st.button("刪除項目", key=f"del_h_{i}"):
-                    handbook.pop(i)
-                    save_handbook(handbook)
-                    st.rerun()
+                    if del_pwd == "0000":
+                        deleted_item = handbook.pop(i)
+                        save_handbook(handbook)
+                        
+                        # 同步寫入歷史紀錄
+                        log_entry = (f"● 時間：{get_taiwan_time().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                                     f"● 人員：{st.session_state.user_name} ({st.session_state.uid})\n"
+                                     f"● 問題：{deleted_item.get('issue')} (後台刪除項目)\n"
+                                     f"● 經過：刪除手冊項目與製令編號 [{deleted_item.get('order_no', '無')}]")
+                        add_log(log_entry)
+                        
+                        st.balloons()
+                        st.success("刪除成功並已同步記錄至歷史紀錄！")
+                        st.rerun()
+                    else:
+                        st.error("❌ 刪除密碼錯誤！")
 
 st.sidebar.divider()
 if st.sidebar.button("🚪 登出系統"):
