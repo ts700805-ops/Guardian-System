@@ -2,22 +2,24 @@ import streamlit as st
 import datetime
 
 def render_page(current_menu):
-    # 注入專屬於品質異常中心的橙色戰情室風格 CSS
+    # 注入專屬於品質異常中心的橙色風格與深藍色字體 CSS
     st.markdown("""
         <style>
         .stApp {
             background: linear-gradient(180deg, #1f1309 0%, #2e1d0d 50%, #4d3114 100%) !important;
             background-attachment: fixed;
-            color: #faedcd !important;
+            color: #0b192c !important;
         }
         .quality-header {
             background: linear-gradient(135deg, #b05c1e, #803e11);
-            color: #ffffff;
             padding: 20px;
             border-radius: 10px;
             margin-bottom: 20px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.5);
             border: 1px solid #d4a373;
+        }
+        .quality-header h2 {
+            color: #0b192c !important;
         }
         .quality-card {
             background-color: #2b1c11;
@@ -28,32 +30,45 @@ def render_page(current_menu):
             box-shadow: 0 2px 4px rgba(0,0,0,0.4);
             border: 1px solid #803e11;
         }
-        h1, h2, h3, h4, h5, h6, label, .stMarkdown p {
-            color: #faedcd !important;
+        /* 強制將頁面所有文字、標題、標籤改為深藍色 */
+        h1, h2, h3, h4, h5, h6, label, .stMarkdown p, span {
+            color: #0b192c !important;
         }
         input, textarea, select {
             background-color: #2b1c11 !important;
-            color: #faedcd !important;
+            color: #0b192c !important;
             border: 1px solid #d4a373 !important;
         }
         .stTextInput input, .stTextArea textarea {
             background-color: #2b1c11 !important;
-            color: #faedcd !important;
+            color: #0b192c !important;
         }
-        /* 品質異常側邊欄按鈕設計 (橙色系) */
+        /* 側邊欄按鈕設計與字體改為深藍色 */
         section[data-testid="stSidebar"] .stButton>button {
             width: 100%;
-            background-color: #2b1c11 !important;
-            color: #ffffff !important;
+            background-color: #f4a261 !important;
+            color: #0b192c !important;
             border: 1px solid #803e11 !important;
             border-radius: 8px;
             text-align: left;
             font-weight: bold;
             margin-bottom: 4px;
         }
+        section[data-testid="stSidebar"] .stButton>button p {
+            color: #0b192c !important;
+        }
         section[data-testid="stSidebar"] .stButton>button:hover {
-            background-color: #b05c1e !important;
+            background-color: #e76f51 !important;
             border: 1px solid #f4a261 !important;
+        }
+        /* 一般頁面內的按鈕文字改為深藍色 */
+        .stButton>button {
+            background-color: #f4a261 !important;
+            color: #0b192c !important;
+            font-weight: bold;
+        }
+        .stButton>button p {
+            color: #0b192c !important;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -83,7 +98,7 @@ def render_page(current_menu):
 
         st.markdown("""
             <div class="quality-card">
-                <p style="opacity:0.8; margin:0;">請填寫以下品質異常相關資料（內容可留空直接建立）。</p>
+                <p style="opacity:0.9; margin:0; font-weight:bold;">請填寫以下品質異常相關資料（內容可留空直接建立）。</p>
             </div>
         """, unsafe_allow_html=True)
 
