@@ -275,7 +275,7 @@ def render_page(current_menu):
     elif current_menu == "08. 品質異常分析":
         st.markdown("""
             <div class="quality-header">
-                <h2>📊 08. 品質異常分析報表</h2>
+                <h2>08 SIGNAL COMPOSITION 異常分類百分比分佈</h2>
             </div>
         """, unsafe_allow_html=True)
 
@@ -302,10 +302,6 @@ def render_page(current_menu):
 
         if filtered_recs:
             df = pd.DataFrame(filtered_recs)
-            
-            st.markdown("---")
-            st.markdown("### 📊 異常分類百分比")
-            
             total_cnt = len(filtered_recs)
             cat_counts = df['category'].value_counts()
             
@@ -315,32 +311,46 @@ def render_page(current_menu):
                 chart_data.append({
                     '分類': cat,
                     '件數': cnt,
-                    '百分比': pct,
-                    '標籤文字': f"{cat} ({pct}%)"
+                    '百分比': pct
                 })
             chart_df = pd.DataFrame(chart_data)
 
-            # 彩色圓餅圖設定，並將標籤對齊顯示在圖形外側兩側
-            base = alt.Chart(chart_df).encode(
-                theta=alt.Theta(field="件數", type="quantitative"),
-                color=alt.Color(field="分類", type="nominal", scale=alt.Scale(scheme="category10"), legend=alt.Legend(title="異常分類"))
-            )
-
-            pie = base.mark_arc(innerRadius=60, outerRadius=110)
+            st.markdown("---")
             
-            # 使用算好的角度自動將文字標籤擺放在外圍兩側（對應圖片中的指示位置）
-            text = base.mark_text(radius=155, size=16, fontWeight="bold", align="center").encode(
-                text=alt.Text(field="標籤文字", type="nominal"),
-                theta=alt.Theta(field="件數", type="quantitative")
-            )
+            # 左右分欄：左側放甜甜圈圖，右側放專業進度條與百分比
+            col_chart, col_bars = st.columns([1, 1.2])
+            
+            with col_chart:
+                # 甜甜圈圓餅圖
+                base = alt.Chart(chart_df).encode(
+                    theta=alt.Theta(field="件數", type="quantitative"),
+                    color=alt.Color(field="分類", type="nominal", scale=alt.Scale(scheme="category10"), legend=None)
+                )
+                pie = base.mark_arc(innerRadius=70, outerRadius=120)
+                
+                # 圓餅圖中心文字疊加
+                donut_text = alt.Chart(pd.DataFrame({'text': ['總體異常分佈', f'{total_cnt} 筆']})).mark_text(
+                    align='center', baseline='middle', fontSize=14, fontWeight='bold', color='#0b192c'
+                ).encode(text='text')
+                
+                st.altair_chart((pie).properties(width=300, height=300), use_container_width=True)
+                st.markdown(f"<h4 style='text-align: center;'>總體異常分佈 (總計：{total_cnt} 筆)</h4>", unsafe_allow_html=True)
 
-            st.altair_chart((pie + text).properties(width=750, height=500), use_container_width=True)
+            with col_bars:
+                st.markdown("### 各分類佔比摘要")
+                for index, row in chart_df.iterrows():
+                    cat_name = row['分類']
+                    pct_val = row['百分比']
+                    cnt_val = row['件數']
+                    
+                    st.markdown(f"**{cat_name}** ({cnt_val} 件)")
+                    st.progress(pct_val / 100.0)
+                    st.markdown(f"<div style='text-align: right; font-weight: bold; margin-bottom: 10px;'>{pct_val}%</div>", unsafe_allow_html=True)
 
-            ratio_data = []
-            for cat, cnt in cat_counts.items():
-                pct = round((cnt / total_cnt) * 100, 1)
-                ratio_data.append({"異常分類": cat, "件數": cnt, "佔比百分比": f"{pct}%"})
-            st.table(pd.DataFrame(ratio_data))
+            # 底部摘要統計列
+            st.markdown("---")
+            summary_str = " · ".join([f"{row['分類']} {row['件數']} 件 ({row['百分比']}%)" for index, row in chart_df.iterrows()])
+            st.markdown(f"**統計摘要：** {summary_str}")
 
             st.markdown("---")
             st.markdown("### 1. 明細 (符合條件的詳細異常紀錄)")
