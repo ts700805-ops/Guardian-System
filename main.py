@@ -9,7 +9,7 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-11"  # 程式版本流水號自動 +1
+VERSION_SN = "v2026.08.22-12"  # 程式版本流水號自動 +1
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
 # --- 自定義專業深色綠調戰情室風格排版與高對比深淺色優化 ---
@@ -235,14 +235,12 @@ if menu == "🔍 異常查詢立案":
             if found_item.get('order_no'):
                 st.info(f"📋 製令編號：{found_item['order_no']}")
             
-            # 安全檢查圖片路徑是否存在，避免 MediaFileStorageError
+            # 圖片檔案安全檢查：若檔案存在才顯示，不存在則略過不報錯
             img_path = found_item.get('image_path')
             if img_path:
                 full_img_path = os.path.join(BASE_PATH, img_path) if not os.path.isabs(img_path) else img_path
                 if os.path.exists(full_img_path):
                     st.image(full_img_path, caption="相關附件圖片", width=300)
-                else:
-                    st.warning("⚠️ 找不到對應的附件圖片檔案。")
             
             st.markdown('<div class="solution-box">', unsafe_allow_html=True)
             st.subheader("💡 智慧推薦異常排除方式")
