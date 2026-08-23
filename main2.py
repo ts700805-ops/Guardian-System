@@ -1,6 +1,7 @@
 import streamlit as st
 import datetime
 import pandas as pd
+import altair as alt
 from firebase_admin import db
 
 def render_page(current_menu):
@@ -289,7 +290,6 @@ def render_page(current_menu):
 
         records = load_quality_records()
 
-        # 篩選日期區間內的資料
         filtered_recs = []
         for rec in records:
             rec_date_str = rec.get('date', '')
@@ -304,26 +304,30 @@ def render_page(current_menu):
             df = pd.DataFrame(filtered_recs)
             
             st.markdown("---")
-            st.markdown("### 2. 圓盤顯示 % (依異常分類佔比)")
+            st.markdown("### 2. 圓盤顯示 % (依異常分類與件數)")
             
-            # 計算各分類次數與佔比
             cat_counts = df['category'].value_counts()
             chart_df = pd.DataFrame({
                 '分類': cat_counts.index,
-                '數量': cat_counts.values
+                '件數': cat_counts.values
             })
 
-            # 使用 Streamlit 內建的圓餅圖 (Pie chart) 顯示 %
-            st.altair_chart(
-                __import__('altair').Chart(chart_df).mark_arc(innerRadius=50).encode(
-                    theta=__import__('altair').Parser().parse('數量:Q') if hasattr(__import__('altair'), 'Parser') else '數量:Q',
-                    color=__import__('altair').Color('分類:N', legend=__import__('altair').Legend(title="異常分類")),
-                    tooltip=['分類', '數量']
-                ).properties(width=500, height=300),
-                use_container_width=True
+            # 建立帶有文字標籤的 Altair 圓餅圖
+            base = alt.Chart(chart_df).encode(
+                theta=alt.Theta(field="件數", type="quantitative"),
+                color=alt.Color(field="分類", type="nominal", legend=alt.Legend(title="異常分類"))
             )
 
-            # 顯示比例表格
+            pie = base.mark_arc(innerRadius=60, outerRadius=120)
+            text = base.mark_text(radius=140, size=14).encode(
+                text=alt.Text(field="分類", type="nominal")
+            )
+            text_count = base.mark_text(radius=90, size=13, color="white").encode(
+                text=alt.Text(field="件數", type="quantitative")
+            )
+
+            st.altair_chart((pie + text + text_count).properties(width=600, height=400), use_container_width=True)
+
             total_cnt = len(filtered_recs)
             ratio_data = []
             for cat, cnt in cat_counts.items():
