@@ -304,31 +304,39 @@ def render_page(current_menu):
             df = pd.DataFrame(filtered_recs)
             
             st.markdown("---")
-            st.markdown("### 2. 圓盤顯示 % (依異常分類與件數)")
+            st.markdown("### 2. 圓盤顯示 % (外圍顯示分類與百分比)")
             
+            # 計算百分比與建立繪圖用 DataFrame
+            total_cnt = len(filtered_recs)
             cat_counts = df['category'].value_counts()
-            chart_df = pd.DataFrame({
-                '分類': cat_counts.index,
-                '件數': cat_counts.values
-            })
+            
+            chart_data = []
+            for cat, cnt in cat_counts.items():
+                pct = round((cnt / total_cnt) * 100, 1)
+                chart_data.append({
+                    '分類': cat,
+                    '件數': cnt,
+                    '百分比': pct,
+                    '標籤文字': f"{cat} ({pct}%)"
+                })
+            chart_df = pd.DataFrame(chart_data)
 
-            # 建立帶有文字標籤的 Altair 圓餅圖
+            # 建立圓餅圖本體
             base = alt.Chart(chart_df).encode(
                 theta=alt.Theta(field="件數", type="quantitative"),
                 color=alt.Color(field="分類", type="nominal", legend=alt.Legend(title="異常分類"))
             )
 
-            pie = base.mark_arc(innerRadius=60, outerRadius=120)
-            text = base.mark_text(radius=140, size=14).encode(
-                text=alt.Text(field="分類", type="nominal")
-            )
-            text_count = base.mark_text(radius=90, size=13, color="white").encode(
-                text=alt.Text(field="件數", type="quantitative")
+            pie = base.mark_arc(innerRadius=50, outerRadius=110)
+            
+            # 將分類與百分比文字顯示在圓餅圖外圍
+            text = base.mark_text(radius=140, size=13, fontWeight="bold").encode(
+                text=alt.Text(field="標籤文字", type="nominal")
             )
 
-            st.altair_chart((pie + text + text_count).properties(width=600, height=400), use_container_width=True)
+            st.altair_chart((pie + text).properties(width=650, height=450), use_container_width=True)
 
-            total_cnt = len(filtered_recs)
+            # 顯示比例表格
             ratio_data = []
             for cat, cnt in cat_counts.items():
                 pct = round((cnt / total_cnt) * 100, 1)
