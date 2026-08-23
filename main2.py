@@ -306,7 +306,6 @@ def render_page(current_menu):
             st.markdown("---")
             st.markdown("### 2. 圓盤顯示 % (外圍顯示分類與百分比)")
             
-            # 計算百分比與建立繪圖用 DataFrame
             total_cnt = len(filtered_recs)
             cat_counts = df['category'].value_counts()
             
@@ -321,7 +320,6 @@ def render_page(current_menu):
                 })
             chart_df = pd.DataFrame(chart_data)
 
-            # 建立圓餅圖本體
             base = alt.Chart(chart_df).encode(
                 theta=alt.Theta(field="件數", type="quantitative"),
                 color=alt.Color(field="分類", type="nominal", legend=alt.Legend(title="異常分類"))
@@ -329,14 +327,13 @@ def render_page(current_menu):
 
             pie = base.mark_arc(innerRadius=50, outerRadius=110)
             
-            # 將分類與百分比文字顯示在圓餅圖外圍
-            text = base.mark_text(radius=140, size=13, fontWeight="bold").encode(
+            # 確保分類名稱與百分比清晰顯示在外圍
+            text = base.mark_text(radius=145, size=13, fontWeight="bold").encode(
                 text=alt.Text(field="標籤文字", type="nominal")
             )
 
             st.altair_chart((pie + text).properties(width=650, height=450), use_container_width=True)
 
-            # 顯示比例表格
             ratio_data = []
             for cat, cnt in cat_counts.items():
                 pct = round((cnt / total_cnt) * 100, 1)
