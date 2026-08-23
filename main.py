@@ -9,7 +9,7 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-36"  # 程式版本流水號自動 +1
+VERSION_SN = "v2026.08.22-37"  # 程式版本流水號自動 +1
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
 # --- 自定義專業深色綠調戰情室風格排版與高對比深淺色優化 ---
@@ -124,7 +124,6 @@ LOG_FILE = os.path.join(BASE_PATH, 'work_logs.txt')
 # --- Firebase 核心處理函數 ---
 
 def load_handbook():
-    """讀取手冊資料 (Handbook)"""
     ref = db.reference('handbook')
     data = ref.get()
     if data is None and os.path.exists(HANDBOOK_FILE):
@@ -134,11 +133,9 @@ def load_handbook():
     return data if data else []
 
 def save_handbook(data):
-    """儲存手冊資料"""
     db.reference('handbook').set(data)
 
 def load_users():
-    """讀取帳號資料 (Users)"""
     ref = db.reference('users')
     data = ref.get()
     if data is None:
@@ -151,11 +148,9 @@ def load_users():
     return data
 
 def save_users(data):
-    """儲存帳號資料"""
     db.reference('users').set(data)
 
 def load_logs():
-    """讀取歷史紀錄 (Logs)"""
     ref = db.reference('logs')
     data = ref.get()
     if data is None and os.path.exists(LOG_FILE):
@@ -166,7 +161,6 @@ def load_logs():
     return data if data else []
 
 def add_log(entry):
-    """新增一筆紀錄到雲端"""
     ref = db.reference('logs')
     logs = ref.get()
     if logs is None: logs = []
@@ -174,7 +168,6 @@ def add_log(entry):
     ref.set(logs)
 
 def calculate_step_probabilities(found_item, step_list):
-    """根據手冊項目中記錄的各步驟次數設定計算百分比，確保符合規格並總和為 100%"""
     total_steps = len(step_list)
     if total_steps == 0: return {}
     
@@ -194,7 +187,7 @@ def calculate_step_probabilities(found_item, step_list):
             
     return step_stats
 
-# --- 登入系統 (維持需要密碼驗證，登入頁不顯示版本) ---
+# --- 登入系統 ---
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
@@ -213,7 +206,7 @@ if not st.session_state.logged_in:
             st.error("❌ 此帳號驗證失敗或已被凍結！")
     st.stop()
 
-# --- 主程式側邊欄導航設定（按鈕形式與選取高亮） ---
+# --- 主程式側邊欄導航設定 ---
 st.sidebar.title(f"👤 {st.session_state.user_name}")
 st.sidebar.caption(f"版本：{VERSION_SN}")
 
@@ -222,12 +215,6 @@ if 'menu_choice' not in st.session_state:
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🛠️ 異常排除手冊導航")
-
-# 動態設定選中按鈕的外框與背景顏色（綠色系區分）
-def get_btn_style(target_menu):
-    if st.session_state.menu_choice == target_menu:
-        return "background-color: #1b4d3e !important; border: 2px solid #52b788 !important;"
-    return ""
 
 if st.sidebar.button("01. 🔍 異常查詢立案", key="b1"):
     st.session_state.menu_choice = "🔍 異常查詢立案"
@@ -242,22 +229,25 @@ if st.sidebar.button("04. ⚙️ 管理後台", key="b4"):
     st.session_state.menu_choice = "⚙️ 管理後台"
     st.rerun()
 
+# 分隔線與品質異常導航入口按鈕（點擊後直接交由 main2 渲染）
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 📈 品質異常導航")
 if st.sidebar.button("05. 📈 異常紀錄查詢", key="b5"):
     st.session_state.menu_choice = "📈 異常紀錄查詢"
     st.rerun()
+if st.sidebar.button("06. ➕ 異常項目建立", key="b6"):
+    st.session_state.menu_choice = "➕ 異常項目建立"
+    st.rerun()
 
 menu = st.session_state.menu_choice
-
 handbook = load_handbook()
 if 'clear_flag' not in st.session_state: st.session_state.clear_flag = 0
 
 # --- 路由分發邏輯 ---
-if menu == "📈 異常紀錄查詢":
+if menu in ["📈 異常紀錄查詢", "➕ 異常項目建立"]:
     try:
         import main2
-        main2.render_page()
+        main2.render_page(menu)
     except Exception as e:
         st.error(f"載入 main2.py 失敗：{e}")
 
@@ -573,7 +563,7 @@ elif menu == "⚙️ 管理後台":
                     st.balloons()
                     st.success("修改成功並已同步記錄至歷史紀錄！")
                 
-                del_pwd = st.text_input("請輸入刪除密碼 (0000)", type="password", key=f"del_pwd_{i}")
+                del_pwd = st.text_input("輸入刪除密碼 (0000)", type="password", key=f"del_pwd_{i}")
                 if st.button("刪除項目", key=f"del_h_{i}"):
                     if del_pwd == "0000":
                         deleted_item = handbook.pop(i)
