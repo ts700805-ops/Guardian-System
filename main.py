@@ -9,7 +9,7 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-13"  # 程式版本流水號自動 +1
+VERSION_SN = "v2026.08.22-14"  # 程式版本流水號自動 +1
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
 # --- 自定義專業深色綠調戰情室風格排版與高對比深淺色優化 ---
@@ -58,6 +58,10 @@ st.markdown("""
     /* 優化文字與標題的高對比度 */
     h1, h2, h3, h4, h5, h6, label, .stMarkdown p {
         color: #f1f8f6 !important;
+    }
+    /* 統計頁面黃色標題專用 */
+    .stat-title {
+        color: #ffd700 !important;
     }
     /* 修正輸入框背景與文字顏色，解決過亮看不清楚的問題 */
     input, textarea, select {
@@ -297,9 +301,9 @@ elif menu == "📜 歷史回報紀錄":
         st.text_area("歷史紀錄", display_text + "\n" + "="*45, height=600)
     else: st.info("尚無紀錄")
 
-# --- 功能 3：數據統計 ---
+# --- 功能 3：數據統計 (改為具備編輯/刪除與動態百分比之統計頁面) ---
 elif menu == "📊 異常數據統計":
-    st.header("📊 異常數據統計")
+    st.markdown('<h2 class="stat-title">📊 異常數據統計與智慧推薦異常排除方式</h2>', unsafe_allow_html=True)
     logs = load_logs()
     if logs:
         issues = []
@@ -308,8 +312,73 @@ elif menu == "📊 異常數據統計":
             if match: issues.append(match.group(1).strip())
         
         if issues:
-            stats = Counter(issues).most_common(10)
-            st.table(pd.DataFrame(stats, columns=["異常名稱", "次數"]))
+            counts = Counter(issues)
+            total_counts = sum(counts.values())
+            
+            # 建立動態統計列表，包含次數與基於此頁次數計算的百分比
+            stat_data = []
+            for issue_name, cnt in counts.most_common(10):
+                pct = round((cnt / total_counts) * 100, 1) if total_counts > 0 else 0.0
+                stat_data.append({"異常名稱": issue_name, "次數": cnt, "佔比百分比": f"{pct}%"})
+            
+            df_stat = pd.DataFrame(stat_data)
+            st.table(df_stat)
+            
+            st.divider()
+            st.subheader("⚙️ 統計項目管理 (編輯與刪除)")
+            stat_issues_list = [item["異常名稱"] for item in stat_data]
+            selected_stat_issue = st.selectbox("選擇要管理的異常項目", stat_issues_list, key="stat_sel_issue")
+            
+            # 尋找對應的 handbook 索引
+            target_h_idx = next((i for i, h in enumerate(handbook) if h.get('issue') == selected_stat_issue), None)
+            
+            if target_h_idx is not None:
+                item = handbook[target_h_idx]
+                with st.expander(f"編輯統計項目：{item['issue']}", expanded=True):
+                    st_issue_edit = st.text_input("異常標題", item['issue'], key="st_is_edit")
+                    st_order_edit = st.text_input("製令編號", item.get('order_no', ''), key="st_ord_edit")
+                    st_kw_edit = st.text_input("關鍵字", item.get('keyword', ''), key="st_kw_edit")
+                    st_sol_edit = st.text_area("異常排除方式", item['solution'], key="st_sol_edit", height=150)
+                    
+                    if st.button("儲存修改", key="st_save_btn"):
+                        handbook[target_h_idx] = {
+                            "issue": st_issue_edit,
+                            "order_no": st_order_edit,
+                            "keyword": st_kw_edit,
+                            "solution": st_sol_edit,
+                            "image_path": item.get('image_path', '')
+                        }
+                        save_handbook(handbook)
+                        
+                        log_entry = (f"● 時間：{get_taiwan_time().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                                     f"● 人員：{st.session_state.user_name} ({st.session_state.uid})\n"
+                                     f"● 問題：{st_issue_edit} (統計頁面編輯修改)\n"
+                                     f"● 經過：修改製令編號 [{st_order_edit}]、關鍵字與異常排除方式內容")
+                        add_log(log_entry)
+                        
+                        st.balloons()
+                        st.success("修改成功並已同步記錄至歷史紀錄！")
+                        st.rerun()
+                    
+                    st_del_pwd = st.text_input("請輸入刪除密碼 (0000)", type="password", key="st_del_pwd")
+                    if st.button("刪除項目", key="st_del_btn"):
+                        if st_del_pwd == "0000":
+                            deleted_item = handbook.pop(target_h_idx)
+                            save_handbook(handbook)
+                            
+                            log_entry = (f"● 時間：{get_taiwan_time().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                                         f"● 人員：{st.session_state.user_name} ({st.session_state.uid})\n"
+                                         f"● 問題：{deleted_item.get('issue')} (統計頁面刪除項目)\n"
+                                         f"● 經過：刪除手冊項目與製令編號 [{deleted_item.get('order_no', '無')}]")
+                            add_log(log_entry)
+                            
+                            st.balloons()
+                            st.success("刪除成功並已同步記錄至歷史紀錄！")
+                            st.rerun()
+                        else:
+                            st.error("❌ 刪除密碼錯誤！")
+            else:
+                st.info("此項目為歷史紀錄累積產生，若需編輯可至後台手冊建立。")
         else: st.info("數據分析中...")
     else: st.info("無紀錄")
 
