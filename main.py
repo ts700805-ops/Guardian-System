@@ -9,10 +9,10 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-09"  # 程式版本流水號自動 +1
+VERSION_SN = "v2026.08.22-10"  # 程式版本流水號自動 +1
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
-# --- 自定義專業深色綠調戰情室風格排版與全面介面套用 ---
+# --- 自定義專業深色綠調戰情室風格排版與高對比深淺色優化 ---
 st.markdown("""
     <style>
     /* 整個頁面主體套用深色戰情室風格，底部漸層綠色 */
@@ -55,8 +55,18 @@ st.markdown("""
         margin-bottom: 15px;
         border: 1px solid #2d6a4f;
     }
-    /* 優化文字與標題的高對比度，確保深淺色清晰可辨 */
+    /* 優化文字與標題的高對比度 */
     h1, h2, h3, h4, h5, h6, label, .stMarkdown p {
+        color: #f1f8f6 !important;
+    }
+    /* 修正輸入框背景與文字顏色，解決過亮看不清楚的問題 */
+    input, textarea, select {
+        background-color: #112a21 !important;
+        color: #f1f8f6 !important;
+        border: 1px solid #2d6a4f !important;
+    }
+    .stTextInput input, .stTextArea textarea {
+        background-color: #112a21 !important;
         color: #f1f8f6 !important;
     }
     /* 按鈕深淺色搭配優化 */
