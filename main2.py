@@ -1,8 +1,8 @@
 import streamlit as st
 import datetime
 
-def render_page():
-    # 注入專屬於品質異常中心的深紅色戰情室風格 CSS (按鈕選中時呈現深紅框高亮)
+def render_page(current_menu):
+    # 注入專屬於品質異常中心的深紅色戰情室風格 CSS
     st.markdown("""
         <style>
         .stApp {
@@ -40,7 +40,7 @@ def render_page():
             background-color: #2b1111 !important;
             color: #fce8e8 !important;
         }
-        /* 品質異常側邊欄按鈕設計：點選後呈現深紅色框 */
+        /* 品質異常側邊欄按鈕設計 */
         section[data-testid="stSidebar"] .stButton>button {
             width: 100%;
             background-color: #2b1111 !important;
@@ -58,29 +58,13 @@ def render_page():
         </style>
     """, unsafe_allow_html=True)
 
-    st.markdown("""
-        <div class="quality-header">
-            <h2>📈 品質異常紀錄中心</h2>
-        </div>
-    """, unsafe_allow_html=True)
+    if current_menu == "📈 異常紀錄查詢":
+        st.markdown("""
+            <div class="quality-header">
+                <h2>📈 品質異常紀錄中心</h2>
+            </div>
+        """, unsafe_allow_html=True)
 
-    # 初始化品質選單狀態
-    if 'quality_choice' not in st.session_state:
-        st.session_state.quality_choice = "🔍 異常紀錄查詢"
-
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("### 📋 品質異常選單")
-    
-    if st.sidebar.button("🔍 異常紀錄查詢", key="ql_btn1"):
-        st.session_state.quality_choice = "🔍 異常紀錄查詢"
-        st.rerun()
-    if st.sidebar.button("➕ 06. 異常項目建立", key="ql_btn2"):
-        st.session_state.quality_choice = "➕ 06. 異常項目建立"
-        st.rerun()
-
-    sub_menu = st.session_state.quality_choice
-
-    if sub_menu == "🔍 異常紀錄查詢":
         st.markdown('<div class="quality-card">', unsafe_allow_html=True)
         q_input = st.text_input("🔍 輸入品質異常關鍵字進行檢索")
         if st.button("查詢品質異常紀錄", key="ql_search"):
@@ -90,11 +74,16 @@ def render_page():
                 st.warning("請輸入查詢關鍵字。")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    elif sub_menu == "➕ 06. 異常項目建立":
+    elif current_menu == "➕ 異常項目建立":
+        st.markdown("""
+            <div class="quality-header">
+                <h2>➕ 06. 異常項目建立</h2>
+            </div>
+        """, unsafe_allow_html=True)
+
         st.markdown("""
             <div class="quality-card">
-                <h3>➕ 06. 異常項目建立</h3>
-                <p style="opacity:0.8;">請填寫以下品質異常相關資料（內容可留空直接建立）。</p>
+                <p style="opacity:0.8; margin:0;">請填寫以下品質異常相關資料（內容可留空直接建立）。</p>
             </div>
         """, unsafe_allow_html=True)
 
