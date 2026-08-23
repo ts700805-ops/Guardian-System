@@ -297,21 +297,23 @@ def render_page(current_menu):
         """, unsafe_allow_html=True)
 
         st.markdown('<div class="quality-card">', unsafe_allow_html=True)
-        st.markdown("### 🎨 異常分類顏色自定義設定")
-        with st.form("color_config_form"):
-            cols_color = st.columns(min(len(categories), 4))
-            new_colors = cat_colors.copy()
-            for idx, cat in enumerate(categories):
-                col_idx = idx % len(cols_color)
-                with cols_color[col_idx]:
-                    curr_col = cat_colors.get(cat, "#1f77b4")
-                    new_colors[cat] = st.color_picker(f"{cat}", value=curr_col, key=f"picker_{cat}")
-            
-            submitted_colors = st.form_submit_button("🔄 更新圖表顏色", use_container_width=True)
-            if submitted_colors:
-                save_category_colors(new_colors)
-                cat_colors = new_colors
-                st.success("🎨 圖表顏色已更新！")
+        
+        # 改為收合選單 (Expander)，點擊箭頭才會展開顏色設定
+        with st.expander("🎨 點擊展開：異常分類顏色自定義設定"):
+            with st.form("color_config_form"):
+                cols_color = st.columns(min(len(categories), 4))
+                new_colors = cat_colors.copy()
+                for idx, cat in enumerate(categories):
+                    col_idx = idx % len(cols_color)
+                    with cols_color[col_idx]:
+                        curr_col = cat_colors.get(cat, "#1f77b4")
+                        new_colors[cat] = st.color_picker(f"{cat}", value=curr_col, key=f"picker_{cat}")
+                
+                submitted_colors = st.form_submit_button("🔄 更新圖表顏色", use_container_width=True)
+                if submitted_colors:
+                    save_category_colors(new_colors)
+                    cat_colors = new_colors
+                    st.success("🎨 圖表顏色已更新！")
 
         st.markdown("---")
         st.markdown("### 📅 選擇分析日期區間")
