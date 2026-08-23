@@ -86,10 +86,28 @@ def render_page(current_menu):
         data = ref.get()
         return data if data else []
 
-    def save_quality_records(records):
-        db.reference('quality_records').set(records)
+    def load_category_colors(cats):
+        ref = db.reference('quality_category_colors')
+        colors = ref.get()
+        default_palette = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+        if not colors:
+            colors = {}
+        
+        # 確保每個分類都有對應的顏色
+        updated = False
+        for i, cat in enumerate(cats):
+            if cat not in colors:
+                colors[cat] = default_palette[i % len(default_palette)]
+                updated = True
+        if updated:
+            ref.set(colors)
+        return colors
+
+    def save_category_colors(colors):
+        db.reference('quality_category_colors').set(colors)
 
     categories = load_categories()
+    cat_colors = load_category_colors(categories)
 
     if current_menu == "📈 異常紀錄查詢":
         st.markdown("""
@@ -171,7 +189,7 @@ def render_page(current_menu):
                                         "status": e_status,
                                         "person": e_person
                                     }
-                                    save_quality_records(records)
+                                    db.reference('quality_records').set(records)
                                     st.balloons()
                                     st.success("🎉 紀錄修改成功！")
                                     st.rerun()
@@ -186,12 +204,12 @@ def render_page(current_menu):
                             if submitted_del:
                                 if d_pwd == "0000":
                                     records.pop(idx)
-                                    save_quality_records(records)
+                                    db.reference('quality_records').set(records)
                                     st.balloons()
                                     st.success("🗑️ 紀錄已成功刪除！")
                                     st.rerun()
                                 else:
-                                    st.error("❌ 授權密碼錯誤！")
+                                    st.error("❌ 刪除密碼錯誤！")
         else:
             st.info("尚無符合條件的品質異常紀錄。")
             
@@ -238,7 +256,7 @@ def render_page(current_menu):
                 
                 records = load_quality_records()
                 records.insert(0, new_record)
-                save_quality_records(records)
+                db.reference('quality_records').set(records)
                 
                 st.balloons()
                 st.success("🎉 異常項目建立成功並已儲存至資料庫！")
@@ -275,11 +293,28 @@ def render_page(current_menu):
     elif current_menu == "08. 品質異常分析":
         st.markdown("""
             <div class="quality-header">
-                <h2>08 SIGNAL COMPOSITION 異常分類百分比分佈</h2>
+                <h2>08. 異常分類百分比分佈</h2>
             </div>
         """, unsafe_allow_html=True)
 
         st.markdown('<div class="quality-card">', unsafe_allow_html=True)
+        st.markdown("### 🎨 異常分類顏色自定義設定")
+        with st.form("color_config_form"):
+            cols_color = st.columns(min(len(categories), 4))
+            new_colors = cat_colors.copy()
+            for idx, cat in enumerate(categories):
+                col_idx = idx % len(cols_color)
+                with cols_color[col_idx]:
+                    curr_col = cat_colors.get(cat, "#1f77b4")
+                    new_colors[cat] = st.color_picker(f"{cat}", value=curr_col, key=f"picker_{cat}")
+            
+            submitted_colors = st.form_submit_button("🔄 更新圖表顏色", use_container_width=True)
+            if submitted_colors:
+                save_category_colors(new_colors)
+                cat_colors = new_colors
+                st.success("🎨 圖表顏色已更新！")
+
+        st.markdown("---")
         st.markdown("### 📅 選擇分析日期區間")
         
         col_d1, col_d2 = st.columns(2)
@@ -305,19 +340,21 @@ def render_page(current_menu):
             total_cnt = len(filtered_recs)
             cat_counts = df['category'].value_counts()
             
-            # 定義與 Altair category10 配色一致的標準色彩代碼
-            color_palette = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
-            
             chart_data = []
-            for i, (cat, cnt) in enumerate(cat_counts.items()):
+            domain_colors = []
+            range_colors = []
+            for cat, cnt in cat_counts.items():
                 pct = round((cnt / total_cnt) * 100, 1)
-                c_color = color_palette[i % len(color_palette)]
+                c_color = cat_colors.get(cat, '#1f77b4')
                 chart_data.append({
                     '分類': cat,
                     '件數': cnt,
                     '百分比': pct,
                     '顏色': c_color
                 })
+                domain_colors.append(cat)
+                range_colors.append(c_color)
+
             chart_df = pd.DataFrame(chart_data)
 
             st.markdown("---")
@@ -325,10 +362,9 @@ def render_page(current_menu):
             col_chart, col_bars = st.columns([1, 1.2])
             
             with col_chart:
-                # 甜甜圈圓餅圖
                 base = alt.Chart(chart_df).encode(
                     theta=alt.Theta(field="件數", type="quantitative"),
-                    color=alt.Color(field="分類", type="nominal", scale=alt.Scale(scheme="category10"), legend=None)
+                    color=alt.Color(field="分類", type="nominal", scale=alt.Scale(domain=domain_colors, range=range_colors), legend=None)
                 )
                 pie = base.mark_arc(innerRadius=70, outerRadius=120)
                 
@@ -344,7 +380,6 @@ def render_page(current_menu):
                     bar_color = row['顏色']
                     
                     st.markdown(f"**{cat_name}** ({cnt_val} 件)")
-                    # 使用自定義 HTML/CSS 呈現較粗且顏色一致的進度條
                     bar_html = f"""
                     <div style="background-color: #e0d0b0; border-radius: 10px; width: 100%; height: 22px; margin-bottom: 5px; overflow: hidden; border: 1px solid #d4a373;">
                         <div style="background-color: {bar_color}; width: {pct_val}%; height: 100%; border-radius: 8px 0 0 8px;"></div>
