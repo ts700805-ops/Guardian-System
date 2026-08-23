@@ -9,7 +9,7 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-24"  # 程式版本流水號自動 +1
+VERSION_SN = "v2026.08.22-25"  # 程式版本流水號自動 +1
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
 # --- 自定義專業深色綠調戰情室風格排版與高對比深淺色優化 ---
@@ -284,13 +284,28 @@ if menu == "🔍 異常查詢立案":
             
             if st.button("🚀 確認送出並完成立案", use_container_width=True):
                 if action.strip():
+                    # 項次 35：同步將前端回報的經過自動對應至步驟次數 +1
+                    step_counts = found_item.get('step_counts', {})
+                    matched_step = next((step for step in clean_steps if action.strip() in step or step in action.strip()), None)
+                    if matched_step:
+                        step_counts[matched_step] = step_counts.get(matched_step, 0) + 1
+                    else:
+                        # 若無直接相符則預設加在第一個步驟或新增
+                        if clean_steps:
+                            first_step = clean_steps[0]
+                            step_counts[first_step] = step_counts.get(first_step, 0) + 1
+                    
+                    found_item['step_counts'] = step_counts
+
                     if extra_fix:
                         current_steps = clean_steps.copy()
                         if action.strip() not in current_steps:
                             current_steps.append(action.strip())
                         new_formatted_sol = "\n".join([f"{i+1}. {step}" for i, step in enumerate(current_steps)])
-                        handbook[found_idx]['solution'] = new_formatted_sol
-                        save_handbook(handbook)
+                        found_item['solution'] = new_formatted_sol
+                    
+                    handbook[found_idx] = found_item
+                    save_handbook(handbook)
                     
                     log_entry = (f"● 時間：{get_taiwan_time().strftime('%Y-%m-%d %H:%M:%S')}\n"
                                  f"● 人員：{st.session_state.user_name} ({st.session_state.uid})\n"
@@ -299,7 +314,7 @@ if menu == "🔍 異常查詢立案":
                     add_log(log_entry)
                     
                     st.session_state.clear_flag += 1
-                    st.balloons(); st.success("立案成功！資料已同步至雲端資料庫。")
+                    st.balloons(); st.success("立案成功！次數已同步更新至管理後台與智慧推薦。")
                     st.rerun() 
                 else: st.warning("⚠️ 請填寫回報內容後再送出立案")
         elif query: st.error("❌ 找不到符合條件的排除方案，請嘗試其他關鍵字。")
