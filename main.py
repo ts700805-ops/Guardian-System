@@ -9,7 +9,7 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-16"  # 程式版本流水號自動 +1
+VERSION_SN = "v2026.08.22-17"  # 程式版本流水號自動 +1
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
 # --- 自定義專業深色綠調戰情室風格排版與高對比深淺色優化 ---
@@ -59,13 +59,17 @@ st.markdown("""
     h1, h2, h3, h4, h5, h6, label, .stMarkdown p {
         color: #f1f8f6 !important;
     }
-    /* 統計頁面標題與表格內容黃色專用 */
+    /* 統計頁面標題與表格內容黃色專用與加上線格 */
     .stat-title {
         color: #ffd700 !important;
     }
-    /* 將統計表格內所有文字強制改為黃色，解決原本灰色不清楚的問題 */
+    div[data-testid="stTable"] table, 
     div[data-testid="stTable"] table th, 
-    div[data-testid="stTable"] table td,
+    div[data-testid="stTable"] table td {
+        color: #ffd700 !important;
+        border: 1px solid #2d6a4f !important;
+        border-collapse: collapse !important;
+    }
     div[data-testid="stTable"] span {
         color: #ffd700 !important;
     }
@@ -307,7 +311,7 @@ elif menu == "📜 歷史回報紀錄":
         st.text_area("歷史紀錄", display_text + "\n" + "="*45, height=600)
     else: st.info("尚無紀錄")
 
-# --- 功能 3：數據統計 (標題與內容皆改為黃色，方便清晰檢視) ---
+# --- 功能 3：數據統計 (黃色字體、線格表格，並附帶編輯次數與刪除功能) ---
 elif menu == "📊 異常數據統計":
     st.markdown('<h2 class="stat-title">📊 異常數據統計</h2>', unsafe_allow_html=True)
     logs = load_logs()
@@ -328,6 +332,53 @@ elif menu == "📊 異常數據統計":
             
             df_stat = pd.DataFrame(stat_data)
             st.table(df_stat)
+            
+            st.divider()
+            st.subheader("⚙️ 統計項目管理 (修改次數與刪除)")
+            stat_issues_list = [item["異常名稱"] for item in stat_data]
+            selected_stat_issue = st.selectbox("選擇要管理的異常項目", stat_issues_list, key="stat_edit_sel")
+            
+            # 提供修改次數或刪除的管理介面
+            target_h_idx = next((i for i, h in enumerate(handbook) if h.get('issue') == selected_stat_issue), None)
+            current_cnt = counts[selected_stat_issue]
+            
+            col_edit1, col_edit2 = st.columns(2)
+            with col_edit1:
+                new_cnt_input = st.number_input("編輯計數次數", value=int(current_cnt), min_value=0, key="edit_cnt_num")
+                if st.button("更新次數紀錄", key="update_cnt_btn"):
+                    # 透過補足或刪減 log 紀錄來調整次數
+                    diff = new_cnt_input - current_cnt
+                    if diff > 0:
+                        for _ in range(diff):
+                            add_log(f"● 時間：{get_taiwan_time().strftime('%Y-%m-%d %H:%M:%S')}\n● 人員：{st.session_state.user_name} ({st.session_state.uid})\n● 問題：{selected_stat_issue}\n● 經過：手動補登次數")
+                    elif diff < 0:
+                        ref_logs = db.reference('logs')
+                        curr_logs = ref_logs.get() or []
+                        removed = 0
+                        new_logs_list = []
+                        for r in reversed(curr_logs):
+                            if selected_stat_issue in r and removed < abs(diff):
+                                removed += 1
+                            else:
+                                new_logs_list.insert(0, r)
+                        ref_logs.set(new_logs_list)
+                    st.balloons()
+                    st.success("次數更新成功！")
+                    st.rerun()
+            
+            with col_edit2:
+                stat_del_pwd = st.text_input("輸入刪除密碼 (0000)", type="password", key="stat_del_p")
+                if st.button("刪除此統計項目紀錄", key="stat_del_exec"):
+                    if stat_del_pwd == "0000":
+                        ref_logs = db.reference('logs')
+                        curr_logs = ref_logs.get() or []
+                        filtered_logs = [r for r in curr_logs if selected_stat_issue not in r]
+                        ref_logs.set(filtered_logs)
+                        st.balloons()
+                        st.success("已成功刪除該項目的所有相關紀錄！")
+                        st.rerun()
+                    else:
+                        st.error("❌ 刪除密碼錯誤！")
         else: st.info("數據分析中...")
     else: st.info("無紀錄")
 
