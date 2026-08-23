@@ -9,7 +9,7 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-17"  # 程式版本流水號自動 +1
+VERSION_SN = "v2026.08.22-18"  # 程式版本流水號自動 +1
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
 # --- 自定義專業深色綠調戰情室風格排版與高對比深淺色優化 ---
@@ -170,7 +170,7 @@ def add_log(entry):
     ref.set(logs)
 
 def calculate_step_probabilities(issue_name, step_list):
-    """根據提供的排除項目數量與雲端紀錄計算推薦機率"""
+    """根據統計頁面的次數控制來計算排除項目的推薦百分比"""
     total_steps = len(step_list)
     if total_steps == 0: return {}
     
@@ -178,19 +178,19 @@ def calculate_step_probabilities(issue_name, step_list):
     step_stats = {step: {"count": 0, "prob": initial_prob} for step in step_list}
     
     logs = load_logs()
-    target_records = [r for r in logs if "問題：" in r and issue_name in r]
-    total_hits = len(target_records)
+    issues = []
+    for rec in logs:
+        match = re.search(r"問題[:：]\s*(.*)", rec)
+        if match: issues.append(match.group(1).strip())
     
-    if total_hits > 0:
-        for rec in target_records:
-            action_match = re.search(r"經過[:：]\s*(.*)", rec)
-            if action_match:
-                action_text = action_match.group(1).strip()
-                for step in step_list:
-                    if action_text in step or step in action_text:
-                        step_stats[step]["count"] += 1
+    counts = Counter(issues)
+    total_issue_count = sum(counts.values())
+    current_issue_count = counts.get(issue_name, 0)
+    
+    if total_issue_count > 0 and current_issue_count > 0:
         for step in step_list:
-            prob = (step_stats[step]["count"] / total_hits) * 100
+            prob = (current_issue_count / total_issue_count) * (100.0 / total_steps) * total_steps
+            if prob > 100.0: prob = 100.0
             step_stats[step]["prob"] = round(prob, 1)
     return step_stats
 
@@ -338,15 +338,12 @@ elif menu == "📊 異常數據統計":
             stat_issues_list = [item["異常名稱"] for item in stat_data]
             selected_stat_issue = st.selectbox("選擇要管理的異常項目", stat_issues_list, key="stat_edit_sel")
             
-            # 提供修改次數或刪除的管理介面
-            target_h_idx = next((i for i, h in enumerate(handbook) if h.get('issue') == selected_stat_issue), None)
             current_cnt = counts[selected_stat_issue]
             
             col_edit1, col_edit2 = st.columns(2)
             with col_edit1:
                 new_cnt_input = st.number_input("編輯計數次數", value=int(current_cnt), min_value=0, key="edit_cnt_num")
                 if st.button("更新次數紀錄", key="update_cnt_btn"):
-                    # 透過補足或刪減 log 紀錄來調整次數
                     diff = new_cnt_input - current_cnt
                     if diff > 0:
                         for _ in range(diff):
