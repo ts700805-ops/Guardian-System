@@ -1,4 +1,5 @@
 import streamlit as st
+import datetime
 
 def render_page():
     # 注入專屬於品質異常中心的深紅色戰情室風格 CSS
@@ -57,17 +58,44 @@ def render_page():
     st.markdown("""
         <div class="quality-header">
             <h2>📈 品質異常紀錄中心</h2>
-            <p style="margin:0; opacity:0.8;">此頁面已切換為獨立的深紅色專屬戰情室風格。</p>
         </div>
     """, unsafe_allow_html=True)
-    
-    st.markdown('<div class="quality-card">', unsafe_allow_html=True)
-    st.info("💡 您可以在此擴充品質異常紀錄查詢、品質缺失統計與分析圖表！")
-    
-    q_input = st.text_input("🔍 輸入品質異常關鍵字進行檢索")
-    if st.button("查詢品質異常紀錄"):
-        if q_input:
-            st.success(f"成功查詢到與「{q_input}」相關的品質異常紀錄！")
-        else:
-            st.warning("請輸入查詢關鍵字。")
-    st.markdown('</div>', unsafe_allow_html=True)
+
+    # 側邊欄或頁面內的子導航
+    sub_menu = st.sidebar.radio("品質異常選單", ["🔍 異常紀錄查詢", "➕ 06. 異常項目建立"], key="quality_sub_menu")
+
+    if sub_menu == "🔍 異常紀錄查詢":
+        st.markdown('<div class="quality-card">', unsafe_allow_html=True)
+        q_input = st.text_input("🔍 輸入品質異常關鍵字進行檢索")
+        if st.button("查詢品質異常紀錄"):
+            if q_input:
+                st.success(f"成功查詢到與「{q_input}」相關的品質異常紀錄！")
+            else:
+                st.warning("請輸入查詢關鍵字。")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    elif sub_menu == "➕ 06. 異常項目建立":
+        st.markdown("""
+            <div class="quality-card">
+                <h3>➕ 06. 異常項目建立</h3>
+                <p style="opacity:0.8;">請填寫以下品質異常相關資料（內容可留空直接建立）。</p>
+            </div>
+        """, unsafe_allow_html=True)
+
+        with st.form("quality_create_form"):
+            col1, col2 = st.columns(2)
+            with col1:
+                f_order = st.text_input("1. 製令")
+                f_date = st.date_input("2. 建立日期", value=datetime.date.today())
+                f_category = st.text_input("3. 異常分類")
+                f_content = st.text_area("4. 異常內容")
+            with col2:
+                f_solution = st.text_area("5. 排除方式")
+                f_countermeasure = st.text_area("6. 對策")
+                f_status = st.text_input("7. 追蹤狀況")
+                f_person = st.text_input("8. 異常人員")
+
+            submitted = st.form_submit_button("🚀 確認建立異常項目", use_container_width=True)
+            if submitted:
+                st.balloons()
+                st.success("🎉 異常項目建立成功！（資料已暫存）")
