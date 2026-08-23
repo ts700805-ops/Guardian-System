@@ -9,7 +9,7 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-27"  # 程式版本流水號自動 +1
+VERSION_SN = "v2026.08.22-28"  # 程式版本流水號自動 +1
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
 # --- 自定義專業深色綠調戰情室風格排版與高對比深淺色優化 ---
@@ -215,13 +215,27 @@ st.sidebar.caption(f"版本：{VERSION_SN}")
 
 # 異常排除手冊導航選單
 st.sidebar.markdown("---")
-menu = st.sidebar.selectbox("異常排除手冊", ["🔍 異常查詢立案", "📜 歷史回報紀錄", "📊 異常數據統計", "⚙️ 管理後台"])
+st.sidebar.markdown("### 異常排除手冊")
+menu_handbook = st.sidebar.selectbox("選擇功能", ["🔍 異常查詢立案", "📜 歷史回報紀錄", "📊 異常數據統計", "⚙️ 管理後台"], key="menu_hb")
+
+# 品質異常紀錄導航選單 (新增)
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 品質異常紀錄")
+menu_quality = st.sidebar.selectbox("選擇功能", ["異常紀錄查詢"], key="menu_ql")
 
 handbook = load_handbook()
 if 'clear_flag' not in st.session_state: st.session_state.clear_flag = 0
 
-# --- 功能 1：專業版查詢與立案頁面 ---
-if menu == "🔍 異常查詢立案":
+# --- 路由分发 ---
+if menu_quality == "異常紀錄查詢":
+    # 嘗試載入並執行 main2.py 檔案
+    try:
+        import main2
+        main2.render_page()
+    except Exception as e:
+        st.error(f"載入 main2.py 失敗：{e}")
+
+elif menu_handbook == "🔍 異常查詢立案":
     st.markdown("""
         <div class="main-header">
             <h2>🛡️ 異常守護者系統 - 專業異常排除中心</h2>
@@ -283,14 +297,12 @@ if menu == "🔍 異常查詢立案":
             
             if st.button("🚀 確認送出並完成立案", use_container_width=True):
                 if action.strip():
-                    # 項次 37 邏輯修正：嚴謹比對前端回報內容與後台步驟清單，將對應步驟次數 +1 同步更新
                     step_counts = found_item.get('step_counts', {})
                     matched_step = None
                     action_lower = action.strip().lower()
                     
                     for idx, step in enumerate(clean_steps):
                         step_lower = step.lower()
-                        # 比對完整字串、數字編號或關鍵字
                         if (action_lower in step_lower) or (step_lower in action_lower) or (str(idx+1) == action_lower.strip('.')):
                             matched_step = step
                             break
@@ -330,8 +342,7 @@ if menu == "🔍 異常查詢立案":
                 else: st.warning("⚠️ 請填寫回報內容後再送出立案")
         elif query: st.error("❌ 找不到符合條件的排除方案，請嘗試其他關鍵字。")
 
-# --- 功能 2：歷史紀錄 ---
-elif menu == "📜 歷史回報紀錄":
+elif menu_handbook == "📜 歷史回報紀錄":
     st.header("📜 歷史回報紀錄查詢")
     logs = load_logs()
     if logs:
@@ -339,8 +350,7 @@ elif menu == "📜 歷史回報紀錄":
         st.text_area("歷史紀錄", display_text + "\n" + "="*45, height=600)
     else: st.info("尚無紀錄")
 
-# --- 功能 3：數據統計 (黃色字體、線格表格，並附帶編輯次數與刪除功能) ---
-elif menu == "📊 異常數據統計":
+elif menu_handbook == "📊 異常數據統計":
     st.markdown('<h2 class="stat-title">📊 異常數據統計</h2>', unsafe_allow_html=True)
     logs = load_logs()
     if logs:
@@ -407,8 +417,7 @@ elif menu == "📊 異常數據統計":
         else: st.info("數據分析中...")
     else: st.info("無紀錄")
 
-# --- 功能 4：管理後台 ---
-elif menu == "⚙️ 管理後台":
+elif menu_handbook == "⚙️ 管理後台":
     st.header("⚙️ 管理員系統")
     tab1, tab2, tab3 = st.tabs(["➕ 新增手冊項目", "✏️ 編輯手冊清單", "👤 帳號權限管理"])
     
