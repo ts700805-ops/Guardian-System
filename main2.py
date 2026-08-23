@@ -5,31 +5,32 @@ import altair as alt
 from firebase_admin import db
 
 def render_page(current_menu):
+    # 注入粉紅色調戰情室風格排版與深藍色字體優化 CSS
     st.markdown("""
         <style>
         .stApp {
-            background: linear-gradient(180deg, #fceade 0%, #f7d6bd 50%, #f2c29e 100%) !important;
+            background: linear-gradient(180deg, #fce4ec 0%, #f8bbd0 50%, #f48fb1 100%) !important;
             background-attachment: fixed;
         }
         .quality-header {
-            background: linear-gradient(135deg, #e07a5f, #d46342);
+            background: linear-gradient(135deg, #ec407a, #d81b60);
             padding: 20px;
             border-radius: 10px;
             margin-bottom: 20px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.15);
-            border: 1px solid #f4a261;
+            border: 1px solid #ff80ab;
         }
         .quality-header h2 {
             color: #0b192c !important;
         }
         .quality-card {
-            background-color: #faedcd;
-            border-left: 6px solid #e07a5f;
+            background-color: #fce4ec;
+            border-left: 6px solid #e91e63;
             padding: 20px;
             border-radius: 8px;
             margin-bottom: 20px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            border: 1px solid #d4a373;
+            border: 1px solid #f8bbd0;
         }
         h1, h2, h3, h4, h5, h6, 
         label, 
@@ -45,7 +46,7 @@ def render_page(current_menu):
         input, textarea, select {
             background-color: #ffffff !important;
             color: #0b192c !important;
-            border: 1px solid #e07a5f !important;
+            border: 1px solid #e91e63 !important;
         }
         .stTextInput input, .stTextArea textarea {
             background-color: #ffffff !important;
@@ -54,8 +55,8 @@ def render_page(current_menu):
         section[data-testid="stSidebar"] .stButton>button,
         .stButton>button {
             width: 100%;
-            background-color: #e07a5f !important;
-            border: 1px solid #bc4749 !important;
+            background-color: #f06292 !important;
+            border: 1px solid #ad1457 !important;
             border-radius: 8px;
             font-weight: bold;
         }
@@ -67,8 +68,8 @@ def render_page(current_menu):
         }
         section[data-testid="stSidebar"] .stButton>button:hover,
         .stButton>button:hover {
-            background-color: #f4a261 !important;
-            border: 1px solid #e07a5f !important;
+            background-color: #ec407a !important;
+            border: 1px solid #f48fb1 !important;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -298,7 +299,6 @@ def render_page(current_menu):
 
         st.markdown('<div class="quality-card">', unsafe_allow_html=True)
         
-        # 改為收合選單 (Expander)，點擊箭頭才會展開顏色設定
         with st.expander("🎨 點擊展開：異常分類顏色自定義設定"):
             with st.form("color_config_form"):
                 cols_color = st.columns(min(len(categories), 4))
@@ -388,7 +388,7 @@ def render_page(current_menu):
                     
                     st.markdown(f"**{cat_name}** ({cnt_val} 件)")
                     bar_html = f"""
-                    <div style="background-color: #e0d0b0; border-radius: 10px; width: 100%; height: 22px; margin-bottom: 5px; overflow: hidden; border: 1px solid #d4a373;">
+                    <div style="background-color: #fce4ec; border-radius: 10px; width: 100%; height: 22px; margin-bottom: 5px; overflow: hidden; border: 1px solid #f48fb1;">
                         <div style="background-color: {bar_color}; width: {pct_val}%; height: 100%; border-radius: 8px 0 0 8px;"></div>
                     </div>
                     <div style="text-align: right; font-weight: bold; color: #0b192c; margin-bottom: 15px;">{pct_val}%</div>
