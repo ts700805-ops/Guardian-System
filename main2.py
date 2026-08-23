@@ -1,9 +1,9 @@
 import streamlit as st
 import datetime
+import pandas as pd
 from firebase_admin import db
 
 def render_page(current_menu):
-    # 注入淡橙色背景與深藍色字體的優化 CSS
     st.markdown("""
         <style>
         .stApp {
@@ -115,13 +115,11 @@ def render_page(current_menu):
         st.markdown(f"### 📋 搜尋結果總覽 (共 {len(filtered_indices)} 筆)")
         
         if filtered_indices:
-            # 轉換為更乾淨的卡片清單與表格化選擇形式
             for idx in filtered_indices:
                 rec = records[idx]
                 card_label = f"📌 【製令：{rec.get('order', '無')}】 日期：{rec.get('date', '')} | 分類：{rec.get('category', '')} | 人員：{rec.get('person', '')}"
                 
                 with st.expander(card_label):
-                    # 採用左右分欄讓版面更清爽
                     tab_view, tab_edit, tab_del = st.tabs(["👁️ 內容檢視", "✏️ 編輯修改", "🗑️ 刪除紀錄"])
                     
                     with tab_view:
@@ -271,4 +269,73 @@ def render_page(current_menu):
                     st.success("🎉 下拉式選單分類設定已成功更新！")
                 else:
                     st.warning("⚠️ 請至少輸入一個有效的分類項目。")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    elif current_menu == "08. 品質異常分析":
+        st.markdown("""
+            <div class="quality-header">
+                <h2>📊 08. 品質異常分析報表</h2>
+            </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown('<div class="quality-card">', unsafe_allow_html=True)
+        st.markdown("### 📅 選擇分析日期區間")
+        
+        col_d1, col_d2 = st.columns(2)
+        with col_d1:
+            start_date = st.date_input("開始日期", value=datetime.date.today() - datetime.timedelta(days=30))
+        with col_d2:
+            end_date = st.date_input("結束日期", value=datetime.date.today())
+
+        records = load_quality_records()
+
+        # 篩選日期區間內的資料
+        filtered_recs = []
+        for rec in records:
+            rec_date_str = rec.get('date', '')
+            try:
+                rec_date = datetime.datetime.strptime(rec_date_str, "%Y-%m-%d").date()
+                if start_date <= rec_date <= end_date:
+                    filtered_recs.append(rec)
+            except:
+                pass
+
+        if filtered_recs:
+            df = pd.DataFrame(filtered_recs)
+            
+            st.markdown("---")
+            st.markdown("### 2. 圓盤顯示 % (依異常分類佔比)")
+            
+            # 計算各分類次數與佔比
+            cat_counts = df['category'].value_counts()
+            chart_df = pd.DataFrame({
+                '分類': cat_counts.index,
+                '數量': cat_counts.values
+            })
+
+            # 使用 Streamlit 內建的圓餅圖 (Pie chart) 顯示 %
+            st.altair_chart(
+                __import__('altair').Chart(chart_df).mark_arc(innerRadius=50).encode(
+                    theta=__import__('altair').Parser().parse('數量:Q') if hasattr(__import__('altair'), 'Parser') else '數量:Q',
+                    color=__import__('altair').Color('分類:N', legend=__import__('altair').Legend(title="異常分類")),
+                    tooltip=['分類', '數量']
+                ).properties(width=500, height=300),
+                use_container_width=True
+            )
+
+            # 顯示比例表格
+            total_cnt = len(filtered_recs)
+            ratio_data = []
+            for cat, cnt in cat_counts.items():
+                pct = round((cnt / total_cnt) * 100, 1)
+                ratio_data.append({"異常分類": cat, "件數": cnt, "佔比百分比": f"{pct}%"})
+            st.table(pd.DataFrame(ratio_data))
+
+            st.markdown("---")
+            st.markdown("### 1. 明細 (符合條件的詳細異常紀錄)")
+            st.dataframe(df[['order', 'date', 'category', 'content', 'solution', 'countermeasure', 'status', 'person']], use_container_width=True)
+            
+        else:
+            st.info("ℹ️ 於所選的日期區間內尚無品質異常紀錄資料。")
+            
         st.markdown('</div>', unsafe_allow_html=True)
