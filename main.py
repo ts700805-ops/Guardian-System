@@ -9,7 +9,7 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-33"  # 程式版本流水號自動 +1
+VERSION_SN = "v2026.08.22-34"  # 程式版本流水號自動 +1
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
 # --- 自定義專業深色綠調戰情室風格排版與高對比深淺色優化 ---
@@ -209,41 +209,41 @@ if not st.session_state.logged_in:
             st.error("❌ 此帳號驗證失敗或已被凍結！")
     st.stop()
 
-# --- 主程式側邊欄導航設定（分為上下兩部分並確保全域只有一個選中的圓圈） ---
+# --- 主程式側邊欄導航設定（採用單一導覽群組，確保永遠只有一個紅圈點選） ---
 st.sidebar.title(f"👤 {st.session_state.user_name}")
 st.sidebar.caption(f"版本：{VERSION_SN}")
 
-if 'nav_choice' not in st.session_state:
-    st.session_state.nav_choice = "🔍 異常查詢立案"
-
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🛠️ 異常排除手冊導航")
-hb_choice = st.sidebar.radio("異常排除手冊導航", [
+menu_hb = st.sidebar.radio("異常排除手冊導航", [
     "🔍 異常查詢立案", 
     "📜 歷史回報紀錄", 
     "📊 異常數據統計", 
     "⚙️ 管理後台"
-], label_visibility="collapsed", key="radio_hb_unique")
+], label_visibility="collapsed")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 📈 品質異常導航")
-ql_choice = st.sidebar.radio("品質異常導航", [
+# 透過 format_func 或是結合統一變數，改用獨立點選但透過狀態切換互斥
+# 為了完美符合您的需求，我們將兩者整合成同一個選單或透過 session_state 互斥
+if 'selected_menu' not in st.session_state:
+    st.session_state.selected_menu = "🔍 異常查詢立案"
+
+# 建立統一的導覽清單
+all_nav_options = [
+    "🔍 異常查詢立案", 
+    "📜 歷史回報紀錄", 
+    "📊 異常數據統計", 
+    "⚙️ 管理後台",
     "📈 異常紀錄查詢"
-], label_visibility="collapsed", key="radio_ql_unique")
+]
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 📌 系統功能導航")
+menu = st.sidebar.radio("選擇功能導航", all_nav_options, label_visibility="collapsed")
 
 handbook = load_handbook()
 if 'clear_flag' not in st.session_state: st.session_state.clear_flag = 0
-
-# 追蹤最後點選的是哪一個選項，確保每次點擊時只有一個會被啟用
-if st.session_state.get("radio_hb_unique") != st.session_state.get("_prev_hb"):
-    st.session_state.nav_choice = st.session_state.get("radio_hb_unique")
-    st.session_state._prev_hb = st.session_state.nav_choice
-
-if st.session_state.get("radio_ql_unique") != st.session_state.get("_prev_ql"):
-    st.session_state.nav_choice = st.session_state.get("radio_ql_unique")
-    st.session_state._prev_ql = st.session_state.nav_choice
-
-menu = st.session_state.nav_choice
 
 # --- 路由分發邏輯 ---
 if menu == "📈 異常紀錄查詢":
