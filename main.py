@@ -9,7 +9,7 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-12"  # 程式版本流水號自動 +1
+VERSION_SN = "v2026.08.22-13"  # 程式版本流水號自動 +1
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
 # --- 自定義專業深色綠調戰情室風格排版與高對比深淺色優化 ---
@@ -235,7 +235,7 @@ if menu == "🔍 異常查詢立案":
             if found_item.get('order_no'):
                 st.info(f"📋 製令編號：{found_item['order_no']}")
             
-            # 圖片檔案安全檢查：若檔案存在才顯示，不存在則略過不報錯
+            # 圖片檔案安全檢查：若檔案存在才顯示
             img_path = found_item.get('image_path')
             if img_path:
                 full_img_path = os.path.join(BASE_PATH, img_path) if not os.path.isabs(img_path) else img_path
@@ -400,14 +400,29 @@ elif menu == "⚙️ 管理後台":
                 e_kw = st.text_input("關鍵字", item.get('keyword', ''), key=f"kw_{i}")
                 e_sol = st.text_area("異常排除方式", item['solution'], key=f"sol_{i}", height=200)
                 
+                # 編輯與持久保存照片功能
+                current_img = item.get('image_path', '')
+                if current_img:
+                    full_curr_img = os.path.join(BASE_PATH, current_img) if not os.path.isabs(current_img) else current_img
+                    if os.path.exists(full_curr_img):
+                        st.image(full_curr_img, caption="目前儲存的照片", width=200)
+                e_file = st.file_uploader("更換或新增照片檔", type=["png", "jpg", "jpeg"], key=f"efile_{i}")
+                
                 # 儲存修改按鈕 (加入氣球效果與歷史紀錄同步)
                 if st.button("儲存修改", key=f"sv_{i}"):
+                    final_img_path = current_img
+                    if e_file is not None:
+                        os.makedirs(os.path.join(BASE_PATH, "uploads"), exist_ok=True)
+                        final_img_path = os.path.join("uploads", e_file.name)
+                        with open(os.path.join(BASE_PATH, final_img_path), "wb") as f:
+                            f.write(e_file.getbuffer())
+
                     handbook[i] = {
                         "issue": e_issue, 
                         "order_no": e_order,
                         "keyword": e_kw,
                         "solution": e_sol,
-                        "image_path": item.get('image_path', '')
+                        "image_path": final_img_path
                     }
                     save_handbook(handbook)
                     
@@ -415,7 +430,7 @@ elif menu == "⚙️ 管理後台":
                     log_entry = (f"● 時間：{get_taiwan_time().strftime('%Y-%m-%d %H:%M:%S')}\n"
                                  f"● 人員：{st.session_state.user_name} ({st.session_state.uid})\n"
                                  f"● 問題：{e_issue} (後台編輯修改)\n"
-                                 f"● 經過：修改製令編號 [{e_order}]、關鍵字與異常排除方式內容")
+                                 f"● 經過：修改製令編號 [{e_order}]、關鍵字、照片與異常排除方式內容")
                     add_log(log_entry)
                     
                     st.balloons()
