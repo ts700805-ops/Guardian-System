@@ -9,7 +9,7 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-25"  # 程式版本流水號自動 +1
+VERSION_SN = "v2026.08.22-26"  # 程式版本流水號自動 +1
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
 # --- 自定義專業深色綠調戰情室風格排版與高對比深淺色優化 ---
@@ -262,7 +262,6 @@ if menu == "🔍 異常查詢立案":
             
             for i, txt in enumerate(clean_steps, 1):
                 prob = probs[txt]["prob"]
-                # 依照 100%、75%、50%、25%、0% 規格設定高對比色彩（整行同色，不顯示歷史推薦度文字）
                 if prob >= 100.0:
                     color_style = "color: #2ec4b6; font-weight: bold;"
                 elif prob >= 75.0:
@@ -284,13 +283,26 @@ if menu == "🔍 異常查詢立案":
             
             if st.button("🚀 確認送出並完成立案", use_container_width=True):
                 if action.strip():
-                    # 項次 35：同步將前端回報的經過自動對應至步驟次數 +1
+                    # 項次 36：加強版模糊比對，只要回報文字包含步驟關鍵字或編號即自動 +1
                     step_counts = found_item.get('step_counts', {})
-                    matched_step = next((step for step in clean_steps if action.strip() in step or step in action.strip()), None)
+                    matched_step = None
+                    action_lower = action.strip().lower()
+                    
+                    for idx, step in enumerate(clean_steps):
+                        step_lower = step.lower()
+                        # 比對完整字串、部分關鍵字或數字編號 (例如輸入 "3" 或 "散孔" 或 "更換主軸")
+                        if (action_lower in step_lower) or (step_lower in action_lower) or (str(idx+1) == action_lower.strip('.')):
+                            matched_step = step
+                            break
+                        # 擷取關鍵字比對 (以空格或標點符號分割)
+                        keywords = [kw for kw in re.split(r'[\s\u3000\-_、，,]+', step_lower) if len(kw) > 1]
+                        if any(kw in action_lower for kw in keywords):
+                            matched_step = step
+                            break
+                    
                     if matched_step:
                         step_counts[matched_step] = step_counts.get(matched_step, 0) + 1
                     else:
-                        # 若無直接相符則預設加在第一個步驟或新增
                         if clean_steps:
                             first_step = clean_steps[0]
                             step_counts[first_step] = step_counts.get(first_step, 0) + 1
