@@ -304,7 +304,7 @@ def render_page(current_menu):
             df = pd.DataFrame(filtered_recs)
             
             st.markdown("---")
-            st.markdown("### 2. 異常分類百分比 (彩色圓餅圖)")
+            st.markdown("### 📊 異常分類百分比")
             
             total_cnt = len(filtered_recs)
             cat_counts = df['category'].value_counts()
@@ -320,20 +320,21 @@ def render_page(current_menu):
                 })
             chart_df = pd.DataFrame(chart_data)
 
-            # 使用多彩配色盤 (category10) 讓圓餅圖呈現豐富色彩
+            # 彩色圓餅圖設定，並將標籤對齊顯示在圖形外側兩側
             base = alt.Chart(chart_df).encode(
                 theta=alt.Theta(field="件數", type="quantitative"),
                 color=alt.Color(field="分類", type="nominal", scale=alt.Scale(scheme="category10"), legend=alt.Legend(title="異常分類"))
             )
 
-            pie = base.mark_arc(innerRadius=60, outerRadius=120)
+            pie = base.mark_arc(innerRadius=60, outerRadius=110)
             
-            # 將分類與百分比放大顯示在外圍
-            text = base.mark_text(radius=150, size=15, fontWeight="bold").encode(
-                text=alt.Text(field="標籤文字", type="nominal")
+            # 使用算好的角度自動將文字標籤擺放在外圍兩側（對應圖片中的指示位置）
+            text = base.mark_text(radius=155, size=16, fontWeight="bold", align="center").encode(
+                text=alt.Text(field="標籤文字", type="nominal"),
+                theta=alt.Theta(field="件數", type="quantitative")
             )
 
-            st.altair_chart((pie + text).properties(width=700, height=500), use_container_width=True)
+            st.altair_chart((pie + text).properties(width=750, height=500), use_container_width=True)
 
             ratio_data = []
             for cat, cnt in cat_counts.items():
