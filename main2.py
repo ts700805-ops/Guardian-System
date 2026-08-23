@@ -72,7 +72,7 @@ def render_page(current_menu):
         </style>
     """, unsafe_allow_html=True)
 
-    # 讀取 Firebase 上的異常分類清單 (若無則給予預設值)
+    # 讀取與儲存分類選項
     def load_categories():
         ref = db.reference('quality_categories')
         cats = ref.get()
@@ -81,25 +81,55 @@ def render_page(current_menu):
             ref.set(cats)
         return cats
 
-    def save_categories(cats):
-        db.reference('quality_categories').set(cats)
+    # 讀取與儲存品質異常紀錄
+    def load_quality_records():
+        ref = db.reference('quality_records')
+        data = ref.get()
+        return data if data else []
+
+    def save_quality_records(records):
+        db.reference('quality_records').set(records)
 
     categories = load_categories()
 
     if current_menu == "📈 異常紀錄查詢":
         st.markdown("""
             <div class="quality-header">
-                <h2>📈 品質異常紀錄中心</h2>
+                <h2>📈 品質異常紀錄查詢與模糊搜尋</h2>
             </div>
         """, unsafe_allow_html=True)
 
         st.markdown('<div class="quality-card">', unsafe_allow_html=True)
-        q_input = st.text_input("🔍 輸入品質異常關鍵字進行檢索")
-        if st.button("查詢品質異常紀錄", key="ql_search"):
-            if q_input:
-                st.success(f"成功查詢到與「{q_input}」相關的品質異常紀錄！")
-            else:
-                st.warning("請輸入查詢關鍵字。")
+        query = st.text_input("🔍 輸入關鍵字進行全欄位模糊搜尋 (可針對製令、分類、內容、排除方式、對策、狀況、人員等)")
+        
+        records = load_quality_records()
+        
+        if query.strip():
+            search_terms = query.lower().split()
+            filtered_records = []
+            for rec in records:
+                combined_text = f"{rec.get('order', '')} {rec.get('date', '')} {rec.get('category', '')} {rec.get('content', '')} {rec.get('solution', '')} {rec.get('countermeasure', '')} {rec.get('status', '')} {rec.get('person', '')}".lower()
+                if all(term in combined_text for term in search_terms):
+                    filtered_records.append(rec)
+        else:
+            filtered_records = records
+
+        st.markdown(f"### 📋 搜尋結果 (共 {len(filtered_records)} 筆)")
+        
+        if filtered_records:
+            for i, rec in enumerate(filtered_records):
+                with st.expander(f"📌 製令：{rec.get('order', '無')} | 日期：{rec.get('date', '')} | 分類：{rec.get('category', '')} | 人員：{rec.get('person', '')}"):
+                    st.markdown(f"**1. 製令：** {rec.get('order', '')}")
+                    st.markdown(f"**2. 建立日期：** {rec.get('date', '')}")
+                    st.markdown(f"**3. 異常分類：** {rec.get('category', '')}")
+                    st.markdown(f"**4. 異常內容：** {rec.get('content', '')}")
+                    st.markdown(f"**5. 排除方式：** {rec.get('solution', '')}")
+                    st.markdown(f"**6. 對策：** {rec.get('countermeasure', '')}")
+                    st.markdown(f"**7. 追蹤狀況：** {rec.get('status', '')}")
+                    st.markdown(f"**8. 異常人員：** {rec.get('person', '')}")
+        else:
+            st.info("尚無符合條件的品質異常紀錄。")
+            
         st.markdown('</div>', unsafe_allow_html=True)
 
     elif current_menu == "➕ 異常項目建立":
@@ -120,7 +150,6 @@ def render_page(current_menu):
             with col1:
                 f_order = st.text_input("1. 製令")
                 f_date = st.date_input("2. 建立日期", value=datetime.date.today())
-                # 3. 異常分類改為動態下拉式選單
                 f_category = st.selectbox("3. 異常分類", options=categories)
                 f_content = st.text_area("4. 異常內容")
             with col2:
@@ -131,8 +160,23 @@ def render_page(current_menu):
 
             submitted = st.form_submit_button("🚀 確認建立異常項目", use_container_width=True)
             if submitted:
+                new_record = {
+                    "order": f_order,
+                    "date": str(f_date),
+                    "category": f_category,
+                    "content": f_content,
+                    "solution": f_solution,
+                    "countermeasure": f_countermeasure,
+                    "status": f_status,
+                    "person": f_person
+                }
+                
+                records = load_quality_records()
+                records.insert(0, new_record)
+                save_quality_records(records)
+                
                 st.balloons()
-                st.success("🎉 異常項目建立成功！（資料已暫存）")
+                st.success("🎉 異常項目建立成功並已儲存至資料庫！")
 
     elif current_menu == "07. 異常後台管理":
         st.markdown("""
@@ -145,7 +189,6 @@ def render_page(current_menu):
         st.markdown("### 📋 設定異常分類選項")
         st.markdown("請在下方文字框中輸入分類項目，多個選項請用半形或全形逗號 `,` 分隔（例如：`設備異常, 材料異常, 操作疏失`）。")
 
-        # 將現有清單組合成用逗號分隔的字串預設顯示在文字框中
         current_str = ", ".join(categories)
         
         with st.form("category_edit_form"):
@@ -153,12 +196,11 @@ def render_page(current_menu):
             submitted_cats = st.form_submit_button("💾 儲存分類設定", use_container_width=True)
             
             if submitted_cats:
-                # 透過逗號分割並去除前後空白與空項目
                 raw_list = cats_input.replace('，', ',').split(',')
                 new_cats = [item.strip() for item in raw_list if item.strip()]
                 
                 if new_cats:
-                    save_categories(new_cats)
+                    db.reference('quality_categories').set(new_cats)
                     st.balloons()
                     st.success("🎉 下拉式選單分類設定已成功更新！")
                 else:
