@@ -9,10 +9,10 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # --- 基礎設定 ---
-VERSION_SN = "v2026.08.22-08"  # 程式版本流水號自動 +1
+VERSION_SN = "v2026.08.22-09"  # 程式版本流水號自動 +1
 st.set_page_config(page_title=f"異常守護者系統 ({VERSION_SN})", page_icon="🛡️", layout="wide")
 
-# --- 自定義專業深色綠調戰情室風格排版與高對比深淺色優化 ---
+# --- 自定義專業深色綠調戰情室風格排版與全面介面套用 ---
 st.markdown("""
     <style>
     /* 整個頁面主體套用深色戰情室風格，底部漸層綠色 */
@@ -20,6 +20,14 @@ st.markdown("""
         background: linear-gradient(180deg, #091310 0%, #0d1f18 50%, #14362b 100%);
         background-attachment: fixed;
         color: #f1f8f6;
+    }
+    /* 全面套用至側邊欄導航介面 */
+    section[data-testid="stSidebar"] {
+        background-color: #0b1a14 !important;
+        border-right: 1px solid #1b4d3e;
+    }
+    section[data-testid="stSidebar"] * {
+        color: #f1f8f6 !important;
     }
     .main-header {
         background: linear-gradient(135deg, #1b4d3e, #0f2d22);
@@ -51,7 +59,7 @@ st.markdown("""
     h1, h2, h3, h4, h5, h6, label, .stMarkdown p {
         color: #f1f8f6 !important;
     }
-    /* 側邊欄與按鈕深淺色搭配優化 */
+    /* 按鈕深淺色搭配優化 */
     .stButton>button {
         background-color: #1b4d3e !important;
         color: #ffffff !important;
