@@ -93,7 +93,6 @@ def render_page(current_menu):
         if not colors:
             colors = {}
         
-        # 確保每個分類都有對應的顏色
         updated = False
         for i, cat in enumerate(cats):
             if cat not in colors:
@@ -209,7 +208,7 @@ def render_page(current_menu):
                                     st.success("🗑️ 紀錄已成功刪除！")
                                     st.rerun()
                                 else:
-                                    st.error("❌ 刪除密碼錯誤！")
+                                    st.error("❌ 授權密碼錯誤！")
         else:
             st.info("尚無符合條件的品質異常紀錄。")
             
@@ -350,7 +349,8 @@ def render_page(current_menu):
                     '分類': cat,
                     '件數': cnt,
                     '百分比': pct,
-                    '顏色': c_color
+                    '顏色': c_color,
+                    '標籤文字': f"{cat} ({pct}%)"
                 })
                 domain_colors.append(cat)
                 range_colors.append(c_color)
@@ -366,9 +366,15 @@ def render_page(current_menu):
                     theta=alt.Theta(field="件數", type="quantitative"),
                     color=alt.Color(field="分類", type="nominal", scale=alt.Scale(domain=domain_colors, range=range_colors), legend=None)
                 )
-                pie = base.mark_arc(innerRadius=70, outerRadius=120)
+                pie = base.mark_arc(innerRadius=60, outerRadius=110)
                 
-                st.altair_chart((pie).properties(width=300, height=300), use_container_width=True)
+                # 將分類名稱與百分比清楚顯示在圓餅圖外圍
+                text = base.mark_text(radius=140, size=14, fontWeight="bold", align="center").encode(
+                    text=alt.Text(field="標籤文字", type="nominal"),
+                    theta=alt.Theta(field="件數", type="quantitative")
+                )
+
+                st.altair_chart((pie + text).properties(width=350, height=350), use_container_width=True)
                 st.markdown(f"<h4 style='text-align: center;'>總體異常分佈 (總計：{total_cnt} 筆)</h4>", unsafe_allow_html=True)
 
             with col_bars:
