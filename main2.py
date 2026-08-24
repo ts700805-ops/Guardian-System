@@ -1,8 +1,238 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import datetime
+import math
+import html
 import pandas as pd
-import altair as alt
 from firebase_admin import db
+
+def _normalize_hex_color(color):
+    color = str(color or "#1f77b4").strip()
+    if not color.startswith("#"):
+        color = "#" + color
+    if len(color) == 4:
+        color = "#" + "".join(ch * 2 for ch in color[1:])
+    if len(color) != 7:
+        return "#1f77b4"
+    try:
+        int(color[1:], 16)
+        return color.lower()
+    except ValueError:
+        return "#1f77b4"
+
+
+def _adjust_hex_color(color, factor):
+    color = _normalize_hex_color(color)
+    rgb = [int(color[i:i + 2], 16) for i in (1, 3, 5)]
+    if factor >= 1:
+        out = [round(v + (255 - v) * min(factor - 1, 1)) for v in rgb]
+    else:
+        out = [round(v * max(factor, 0)) for v in rgb]
+    return "#" + "".join(f"{max(0, min(255, v)):02x}" for v in out)
+
+
+def _donut_sector_path(start_angle, end_angle, outer_radius, inner_radius):
+    delta = end_angle - start_angle
+    if delta >= (2 * math.pi - 1e-6):
+        return (
+            f"M {outer_radius:.3f} 0 "
+            f"A {outer_radius:.3f} {outer_radius:.3f} 0 1 1 {-outer_radius:.3f} 0 "
+            f"A {outer_radius:.3f} {outer_radius:.3f} 0 1 1 {outer_radius:.3f} 0 "
+            f"L {inner_radius:.3f} 0 "
+            f"A {inner_radius:.3f} {inner_radius:.3f} 0 1 0 {-inner_radius:.3f} 0 "
+            f"A {inner_radius:.3f} {inner_radius:.3f} 0 1 0 {inner_radius:.3f} 0 Z"
+        )
+
+    x1 = outer_radius * math.cos(start_angle)
+    y1 = outer_radius * math.sin(start_angle)
+    x2 = outer_radius * math.cos(end_angle)
+    y2 = outer_radius * math.sin(end_angle)
+    x3 = inner_radius * math.cos(end_angle)
+    y3 = inner_radius * math.sin(end_angle)
+    x4 = inner_radius * math.cos(start_angle)
+    y4 = inner_radius * math.sin(start_angle)
+    large_arc = 1 if delta > math.pi else 0
+    return (
+        f"M {x1:.3f} {y1:.3f} "
+        f"A {outer_radius:.3f} {outer_radius:.3f} 0 {large_arc} 1 {x2:.3f} {y2:.3f} "
+        f"L {x3:.3f} {y3:.3f} "
+        f"A {inner_radius:.3f} {inner_radius:.3f} 0 {large_arc} 0 {x4:.3f} {y4:.3f} Z"
+    )
+
+
+def _spread_label_positions(items, min_y, max_y, gap):
+    if not items:
+        return items
+    items = sorted(items, key=lambda x: x["target_y"])
+    items[0]["label_y"] = max(min_y, items[0]["target_y"])
+    for i in range(1, len(items)):
+        items[i]["label_y"] = max(items[i]["target_y"], items[i - 1]["label_y"] + gap)
+    overflow = items[-1]["label_y"] - max_y
+    if overflow > 0:
+        for item in items:
+            item["label_y"] -= overflow
+    underflow = min_y - items[0]["label_y"]
+    if underflow > 0:
+        for item in items:
+            item["label_y"] += underflow
+    return items
+
+
+def _build_3d_donut_html(chart_df, total_cnt):
+    width, height = 720, 450
+    cx, cy = 360, 205
+    outer_radius, inner_radius = 142, 76
+    flatten = 0.72
+    start_angle = -math.pi / 2
+    sectors = []
+
+    for _, row in chart_df.iterrows():
+        cnt = int(row["件數"])
+        pct = float(row["百分比"])
+        angle = (cnt / total_cnt) * 2 * math.pi if total_cnt else 0
+        end_angle = start_angle + angle
+        color = _normalize_hex_color(row["顏色"])
+        sectors.append({
+            "category": str(row["分類"]),
+            "count": cnt,
+            "pct": pct,
+            "color": color,
+            "mid": start_angle + angle / 2,
+            "path": _donut_sector_path(start_angle, end_angle, outer_radius, inner_radius),
+        })
+        start_angle = end_angle
+
+    gradients = []
+    for i, sec in enumerate(sectors):
+        light = _adjust_hex_color(sec["color"], 1.35)
+        dark = _adjust_hex_color(sec["color"], 0.72)
+        gradients.append(
+            f'<linearGradient id="g{i}" x1="0%" y1="0%" x2="100%" y2="100%">'
+            f'<stop offset="0%" stop-color="{light}"/><stop offset="52%" stop-color="{sec["color"]}"/>'
+            f'<stop offset="100%" stop-color="{dark}"/></linearGradient>'
+        )
+
+    depth_paths = []
+    for depth in range(18, 1, -2):
+        opacity = 0.25 + (18 - depth) * 0.012
+        for sec in sectors:
+            depth_color = _adjust_hex_color(sec["color"], 0.44)
+            depth_paths.append(
+                f'<path d="{sec["path"]}" fill="{depth_color}" opacity="{opacity:.2f}" '
+                f'transform="translate({cx},{cy + depth}) scale(1,{flatten})"/>'
+            )
+
+    top_paths = []
+    for i, sec in enumerate(sectors):
+        cat = html.escape(sec["category"])
+        top_paths.append(
+            f'<path d="{sec["path"]}" fill="url(#g{i})" stroke="rgba(255,255,255,0.72)" stroke-width="1.4" '
+            f'transform="translate({cx},{cy}) scale(1,{flatten})" filter="url(#glow)">'
+            f'<title>{cat}：{sec["count"]} 件（{sec["pct"]:.1f}%）</title></path>'
+        )
+
+    labels_left, labels_right = [], []
+    for sec in sectors:
+        mid = sec["mid"]
+        side = "right" if math.cos(mid) >= 0 else "left"
+        edge_x = cx + math.cos(mid) * (outer_radius + 3)
+        edge_y = cy + math.sin(mid) * (outer_radius + 3) * flatten
+        bend_x = cx + math.cos(mid) * (outer_radius + 28)
+        bend_y = cy + math.sin(mid) * (outer_radius + 28) * flatten
+        item = {
+            "sec": sec,
+            "edge_x": edge_x,
+            "edge_y": edge_y,
+            "bend_x": bend_x,
+            "bend_y": bend_y,
+            "target_y": bend_y,
+        }
+        (labels_right if side == "right" else labels_left).append(item)
+
+    labels_left = _spread_label_positions(labels_left, 82, 348, 34)
+    labels_right = _spread_label_positions(labels_right, 82, 348, 34)
+
+    label_svg = []
+    for side, items in (("left", labels_left), ("right", labels_right)):
+        for item in items:
+            sec = item["sec"]
+            label_y = item["label_y"]
+            if side == "right":
+                line_end_x, text_x, anchor = 555, 566, "start"
+            else:
+                line_end_x, text_x, anchor = 165, 154, "end"
+            label_svg.append(
+                f'<polyline points="{item["edge_x"]:.1f},{item["edge_y"]:.1f} '
+                f'{item["bend_x"]:.1f},{item["bend_y"]:.1f} {line_end_x},{label_y:.1f}" '
+                f'fill="none" stroke="{sec["color"]}" stroke-width="1.8" opacity="0.95"/>'
+                f'<circle cx="{line_end_x}" cy="{label_y:.1f}" r="3.4" fill="{sec["color"]}" filter="url(#dotGlow)"/>'
+                f'<text x="{text_x}" y="{label_y - 4:.1f}" text-anchor="{anchor}" class="label-title">'
+                f'{html.escape(sec["category"])}</text>'
+                f'<text x="{text_x}" y="{label_y + 14:.1f}" text-anchor="{anchor}" class="label-pct">'
+                f'{sec["pct"]:.1f}% · {sec["count"]} 件</text>'
+            )
+
+    return f"""
+    <div class="bi-chart-shell">
+      <div class="scanline"></div>
+      <div class="chart-title">品質異常分類｜3D 智慧分佈</div>
+      <div class="chart-subtitle">QUALITY ANOMALY INTELLIGENCE</div>
+      <svg viewBox="0 0 {width} {height}" width="100%" height="100%" role="img" aria-label="品質異常分類立體圓環圖">
+        <defs>
+          {''.join(gradients)}
+          <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur stdDeviation="2.2" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <filter id="dotGlow" x="-200%" y="-200%" width="500%" height="500%">
+            <feGaussianBlur stdDeviation="2.6" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <radialGradient id="coreGlow">
+            <stop offset="0%" stop-color="#0d3855" stop-opacity="0.94"/>
+            <stop offset="72%" stop-color="#061723" stop-opacity="0.97"/>
+            <stop offset="100%" stop-color="#02070d"/>
+          </radialGradient>
+        </defs>
+        <ellipse cx="{cx}" cy="{cy + 116}" rx="158" ry="26" fill="#000" opacity="0.34" filter="url(#glow)"/>
+        {''.join(depth_paths)}
+        {''.join(top_paths)}
+        <ellipse cx="{cx}" cy="{cy}" rx="{inner_radius - 3}" ry="{(inner_radius - 3) * flatten:.1f}" fill="url(#coreGlow)" stroke="#40e0ff" stroke-opacity="0.42" stroke-width="1.4"/>
+        <text x="{cx}" y="{cy - 6}" text-anchor="middle" class="center-kicker">異常總數</text>
+        <text x="{cx}" y="{cy + 22}" text-anchor="middle" class="center-value">{int(total_cnt)}</text>
+        <text x="{cx}" y="{cy + 43}" text-anchor="middle" class="center-unit">件</text>
+        {''.join(label_svg)}
+      </svg>
+    </div>
+    <style>
+      html, body {{ margin:0; padding:0; background:transparent; overflow:hidden; }}
+      .bi-chart-shell {{
+        position:relative; height:438px; border-radius:24px; overflow:hidden;
+        background:
+          radial-gradient(circle at 50% 42%, rgba(20,112,150,.28), transparent 34%),
+          linear-gradient(145deg, rgba(7,25,39,.98), rgba(2,8,15,.99));
+        border:1px solid rgba(95,223,255,.28);
+        box-shadow: inset 0 0 45px rgba(31,196,255,.07), 0 18px 45px rgba(1,8,15,.32);
+        font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+      }}
+      .bi-chart-shell:before {{
+        content:""; position:absolute; inset:0; pointer-events:none;
+        background-image: linear-gradient(rgba(84,220,255,.04) 1px, transparent 1px), linear-gradient(90deg, rgba(84,220,255,.04) 1px, transparent 1px);
+        background-size:28px 28px; mask-image:linear-gradient(to bottom, rgba(0,0,0,.75), transparent 92%);
+      }}
+      .scanline {{ position:absolute; left:0; right:0; height:2px; top:15%; background:linear-gradient(90deg,transparent,#4fe9ff,transparent); opacity:.22; animation:scan 5s linear infinite; }}
+      @keyframes scan {{ 0%{{top:15%}} 100%{{top:92%}} }}
+      .chart-title {{ position:absolute; top:18px; left:24px; color:#d9f8ff; font-weight:800; font-size:18px; letter-spacing:.8px; }}
+      .chart-subtitle {{ position:absolute; top:44px; left:24px; color:#5ee7ff; opacity:.66; font-size:10px; letter-spacing:2.2px; }}
+      svg {{ position:absolute; inset:28px 0 0 0; }}
+      .label-title {{ fill:#e9fbff; font-size:14px; font-weight:800; paint-order:stroke; stroke:#051018; stroke-width:4px; }}
+      .label-pct {{ fill:#77e9ff; font-size:13px; font-weight:800; paint-order:stroke; stroke:#051018; stroke-width:4px; }}
+      .center-kicker {{ fill:#8cecff; font-size:13px; font-weight:700; letter-spacing:1px; }}
+      .center-value {{ fill:#ffffff; font-size:32px; font-weight:900; filter:url(#glow); }}
+      .center-unit {{ fill:#71dff5; font-size:12px; font-weight:700; }}
+    </style>
+    """
+
 
 def render_page(current_menu):
     st.markdown("""
@@ -70,6 +300,47 @@ def render_page(current_menu):
             background-color: #ec407a !important;
             border: 1px solid #f48fb1 !important;
         }
+
+        .bi-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            margin: 12px 0 18px 0;
+        }
+        .bi-kpi {
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(145deg, rgba(5,24,38,0.98), rgba(8,43,61,0.95));
+            border: 1px solid rgba(75,224,255,0.35);
+            border-radius: 16px;
+            padding: 14px 16px;
+            box-shadow: 0 10px 28px rgba(0,28,43,0.22), inset 0 0 22px rgba(58,210,255,0.05);
+        }
+        .bi-kpi::after {
+            content: "";
+            position: absolute;
+            left: 0; top: 0; bottom: 0; width: 3px;
+            background: linear-gradient(180deg, #65efff, #008cff);
+            box-shadow: 0 0 12px #38d9ff;
+        }
+        .bi-kpi-label { color: #8eeeff !important; font-size: 12px; letter-spacing: 1px; margin-bottom: 5px; }
+        .bi-kpi-value { color: #ffffff !important; font-size: 25px; line-height: 1.1; font-weight: 900; }
+        .bi-kpi-sub { color: #a9cbd4 !important; font-size: 11px; margin-top: 6px; }
+        .bi-rank-row {
+            background: linear-gradient(90deg, rgba(4,22,34,.96), rgba(10,48,64,.90));
+            border: 1px solid rgba(80,220,255,.20);
+            border-radius: 13px;
+            padding: 10px 12px;
+            margin: 0 0 10px 0;
+            box-shadow: inset 0 0 18px rgba(56,212,255,.035);
+        }
+        .bi-rank-head { display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:7px; }
+        .bi-rank-name { color:#e7fbff !important; font-weight:800; font-size:14px; }
+        .bi-rank-pct { color:#75e8ff !important; font-weight:900; font-size:14px; }
+        .bi-track { height:10px; border-radius:999px; background:rgba(255,255,255,.08); overflow:hidden; border:1px solid rgba(255,255,255,.05); }
+        .bi-fill { height:100%; border-radius:999px; box-shadow:0 0 14px currentColor; }
+        .bi-rank-meta { color:#a7c7d1 !important; font-size:11px; margin-top:6px; }
+        @media (max-width: 900px) { .bi-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
         </style>
     """, unsafe_allow_html=True)
 
@@ -358,43 +629,88 @@ def render_page(current_menu):
             chart_df = pd.DataFrame(chart_data)
 
             st.markdown("---")
-            
-            col_chart, col_bars = st.columns([1, 1.2])
-            
-            with col_chart:
-                # 採用清晰整潔的圖例設計 (Legend)，徹底避免文字在圓餅圖周遭互相重疊
-                pie = alt.Chart(chart_df).mark_arc(innerRadius=65, outerRadius=110).encode(
-                    theta=alt.Theta(field="件數", type="quantitative"),
-                    color=alt.Color(field="分類", type="nominal", scale=alt.Scale(domain=domain_colors, range=range_colors), legend=alt.Legend(title="異常分類"))
-                )
 
-                st.altair_chart(pie.properties(width=350, height=320), use_container_width=True)
-                st.markdown(f"<h4 style='text-align: center;'>異常分類圓餅圖 (總計：{total_cnt} 筆)</h4>", unsafe_allow_html=True)
+            top_row = chart_df.sort_values(["件數", "百分比"], ascending=False).iloc[0]
+            top_category = html.escape(str(top_row["分類"]))
+            top_pct = float(top_row["百分比"])
+            avg_per_category = round(total_cnt / max(len(chart_df), 1), 1)
+            st.markdown(
+                f"""
+                <div class="bi-kpi-grid">
+                    <div class="bi-kpi">
+                        <div class="bi-kpi-label">異常總數</div>
+                        <div class="bi-kpi-value">{total_cnt} 件</div>
+                        <div class="bi-kpi-sub">所選日期區間累計</div>
+                    </div>
+                    <div class="bi-kpi">
+                        <div class="bi-kpi-label">異常分類數</div>
+                        <div class="bi-kpi-value">{len(chart_df)} 類</div>
+                        <div class="bi-kpi-sub">實際有發生紀錄的分類</div>
+                    </div>
+                    <div class="bi-kpi">
+                        <div class="bi-kpi-label">最高異常分類</div>
+                        <div class="bi-kpi-value" style="font-size:20px;">{top_category}</div>
+                        <div class="bi-kpi-sub">佔全部異常 {top_pct:.1f}%</div>
+                    </div>
+                    <div class="bi-kpi">
+                        <div class="bi-kpi-label">平均分類件數</div>
+                        <div class="bi-kpi-value">{avg_per_category}</div>
+                        <div class="bi-kpi-sub">每一有效分類平均件數</div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            col_chart, col_bars = st.columns([1.5, 1])
+
+            with col_chart:
+                # 自製 SVG 立體圓環：百分比/件數使用外側引線標註，避免文字壓在圖形上。
+                chart_html = _build_3d_donut_html(chart_df, total_cnt)
+                components.html(chart_html, height=455, scrolling=False)
 
             with col_bars:
-                st.markdown("### 各分類佔比摘要")
-                for index, row in chart_df.iterrows():
-                    cat_name = row['分類']
-                    pct_val = row['百分比']
-                    cnt_val = row['件數']
-                    bar_color = row['顏色']
-                    
-                    st.markdown(f"**{cat_name}** ({cnt_val} 件)")
-                    bar_html = f"""
-                    <div style="background-color: #fce4ec; border-radius: 10px; width: 100%; height: 22px; margin-bottom: 5px; overflow: hidden; border: 1px solid #f48fb1;">
-                        <div style="background-color: {bar_color}; width: {pct_val}%; height: 100%; border-radius: 8px 0 0 8px;"></div>
-                    </div>
-                    <div style="text-align: right; font-weight: bold; color: #0b192c; margin-bottom: 15px;">{pct_val}%</div>
-                    """
-                    st.markdown(bar_html, unsafe_allow_html=True)
+                st.markdown("### 📊 分類佔比排行")
+                for _, row in chart_df.sort_values("百分比", ascending=False).iterrows():
+                    cat_name = html.escape(str(row["分類"]))
+                    pct_val = float(row["百分比"])
+                    cnt_val = int(row["件數"])
+                    bar_color = _normalize_hex_color(row["顏色"])
+                    bar_light = _adjust_hex_color(bar_color, 1.35)
+                    st.markdown(
+                        f"""
+                        <div class="bi-rank-row">
+                            <div class="bi-rank-head">
+                                <div class="bi-rank-name">{cat_name}</div>
+                                <div class="bi-rank-pct">{pct_val:.1f}%</div>
+                            </div>
+                            <div class="bi-track">
+                                <div class="bi-fill" style="width:{max(0, min(100, pct_val))}%; color:{bar_color}; background:linear-gradient(90deg,{bar_color},{bar_light});"></div>
+                            </div>
+                            <div class="bi-rank-meta">異常件數：{cnt_val} 件</div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
 
             st.markdown("---")
             summary_str = " · ".join([f"{row['分類']} {row['件數']} 件 ({row['百分比']}%)" for index, row in chart_df.iterrows()])
             st.markdown(f"**統計摘要：** {summary_str}")
 
             st.markdown("---")
-            st.markdown("### 1. 明細 (符合條件的詳細異常紀錄)")
-            st.dataframe(df[['order', 'date', 'category', 'content', 'solution', 'countermeasure', 'status', 'person']], use_container_width=True)
+            st.markdown("### 1. 明細（符合條件的詳細異常紀錄）")
+            chinese_columns = {
+                "order": "製令",
+                "date": "建立日期",
+                "category": "異常分類",
+                "content": "異常內容",
+                "solution": "排除方式",
+                "countermeasure": "對策",
+                "status": "追蹤狀況",
+                "person": "異常人員",
+            }
+            detail_df = df.reindex(columns=list(chinese_columns.keys())).rename(columns=chinese_columns)
+            st.dataframe(detail_df, use_container_width=True, hide_index=True)
             
         else:
             st.info("ℹ️ 於所選的日期區間內尚無品質異常紀錄資料。")
