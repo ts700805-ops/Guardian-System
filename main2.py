@@ -5,7 +5,6 @@ import altair as alt
 from firebase_admin import db
 
 def render_page(current_menu):
-    # 注入粉紅色調戰情室風格排版與深藍色字體優化 CSS
     st.markdown("""
         <style>
         .stApp {
@@ -351,8 +350,7 @@ def render_page(current_menu):
                     '分類': cat,
                     '件數': cnt,
                     '百分比': pct,
-                    '顏色': c_color,
-                    '標籤文字': f"{cat} ({pct}%)"
+                    '顏色': c_color
                 })
                 domain_colors.append(cat)
                 range_colors.append(c_color)
@@ -364,18 +362,13 @@ def render_page(current_menu):
             col_chart, col_bars = st.columns([1, 1.2])
             
             with col_chart:
-                base = alt.Chart(chart_df).encode(
+                # 採用清晰整潔的圖例設計 (Legend)，徹底避免文字在圓餅圖周遭互相重疊
+                pie = alt.Chart(chart_df).mark_arc(innerRadius=65, outerRadius=110).encode(
                     theta=alt.Theta(field="件數", type="quantitative"),
-                    color=alt.Color(field="分類", type="nominal", scale=alt.Scale(domain=domain_colors, range=range_colors), legend=None)
-                )
-                pie = base.mark_arc(innerRadius=60, outerRadius=110)
-                
-                text = base.mark_text(radius=140, size=14, fontWeight="bold", align="center").encode(
-                    text=alt.Text(field="標籤文字", type="nominal"),
-                    theta=alt.Theta(field="件數", type="quantitative")
+                    color=alt.Color(field="分類", type="nominal", scale=alt.Scale(domain=domain_colors, range=range_colors), legend=alt.Legend(title="異常分類"))
                 )
 
-                st.altair_chart((pie + text).properties(width=350, height=350), use_container_width=True)
+                st.altair_chart(pie.properties(width=350, height=320), use_container_width=True)
                 st.markdown(f"<h4 style='text-align: center;'>異常分類圓餅圖 (總計：{total_cnt} 筆)</h4>", unsafe_allow_html=True)
 
             with col_bars:
