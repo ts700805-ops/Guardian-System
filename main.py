@@ -4,6 +4,7 @@ import os
 import datetime
 import re
 import pandas as pd
+import base64
 from collections import Counter
 import firebase_admin
 from firebase_admin import credentials, db
@@ -269,9 +270,12 @@ elif menu == "🔍 異常查詢立案":
             
             img_path = found_item.get('image_path')
             if img_path:
-                full_img_path = os.path.join(BASE_PATH, img_path) if not os.path.isabs(img_path) else img_path
-                if os.path.exists(full_img_path):
-                    st.image(full_img_path, caption="相關附件圖片", width=300)
+                if img_path.startswith("data:image"):
+                    st.image(img_path, caption="相關附件圖片", width=300)
+                else:
+                    full_img_path = os.path.join(BASE_PATH, img_path) if not os.path.isabs(img_path) else img_path
+                    if os.path.exists(full_img_path):
+                        st.image(full_img_path, caption="相關附件圖片", width=300)
             
             st.markdown('<div class="solution-box">', unsafe_allow_html=True)
             st.subheader("💡 智慧推薦異常排除方式")
@@ -465,10 +469,9 @@ elif menu == "⚙️ 管理後台":
             if n_issue and n_sol:
                 image_path = ""
                 if n_file is not None:
-                    os.makedirs(os.path.join(BASE_PATH, "uploads"), exist_ok=True)
-                    image_path = os.path.join("uploads", n_file.name)
-                    with open(os.path.join(BASE_PATH, image_path), "wb") as f:
-                        f.write(n_file.getbuffer())
+                    image_bytes = n_file.getbuffer()
+                    encoded_img = base64.b64encode(image_bytes).decode("utf-8")
+                    image_path = f"data:image/{n_file.type.split('/')[-1]};base64,{encoded_img}"
                 
                 handbook.append({
                     "issue": n_issue, 
@@ -523,18 +526,20 @@ elif menu == "⚙️ 管理後台":
                 
                 current_img = item.get('image_path', '')
                 if current_img:
-                    full_curr_img = os.path.join(BASE_PATH, current_img) if not os.path.isabs(current_img) else current_img
-                    if os.path.exists(full_curr_img):
-                        st.image(full_curr_img, caption="目前儲存的照片", width=200)
+                    if current_img.startswith("data:image"):
+                        st.image(current_img, caption="目前儲存的照片", width=200)
+                    else:
+                        full_curr_img = os.path.join(BASE_PATH, current_img) if not os.path.isabs(current_img) else current_img
+                        if os.path.exists(full_curr_img):
+                            st.image(full_curr_img, caption="目前儲存的照片", width=200)
                 e_file = st.file_uploader("更換或新增照片檔", type=["png", "jpg", "jpeg"], key=f"efile_{i}")
                 
                 if st.button("儲存修改", key=f"sv_{i}"):
                     final_img_path = current_img
                     if e_file is not None:
-                        os.makedirs(os.path.join(BASE_PATH, "uploads"), exist_ok=True)
-                        final_img_path = os.path.join("uploads", e_file.name)
-                        with open(os.path.join(BASE_PATH, final_img_path), "wb") as f:
-                            f.write(e_file.getbuffer())
+                        image_bytes = e_file.getbuffer()
+                        encoded_img = base64.b64encode(image_bytes).decode("utf-8")
+                        final_img_path = f"data:image/{e_file.type.split('/')[-1]};base64,{encoded_img}"
 
                     handbook[i] = {
                         "issue": e_issue, 
